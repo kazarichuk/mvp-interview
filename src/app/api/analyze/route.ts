@@ -17,7 +17,7 @@ export async function POST(request: Request) {
         {
           role: 'system',
           content:
-            'You are an HR expert who evaluates candidate interview answers in terms of hard skills and soft skills. Provide a detailed analysis of the following transcript, including strengths, weaknesses, and a recommendation for the candidate level (e.g., Junior, Mid-level, Senior).'
+            'You are an Design Manager and HR expert who evaluates candidate interview answers in terms of hard skills and soft skills. Provide a detailed analysis of the following transcript, including strengths, weaknesses, and the candidate level (Junior, Mid-level, Senior, Lead).'
         },
         {
           role: 'user',
