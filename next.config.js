@@ -7,6 +7,13 @@ const nextConfig = {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
     DOC_RAPTOR_API_KEY: process.env.DOC_RAPTOR_API_KEY || '',
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      undici: false
+    };
+    return config;
+  }
 };
 
 module.exports = nextConfig;
