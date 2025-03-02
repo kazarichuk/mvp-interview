@@ -7,14 +7,6 @@ const nextConfig = {
         source: '/',
         destination: '/auth/login',
         permanent: true
-      },
-      {
-        source: '/dashboard',
-        destination: '/auth/login',
-        permanent: false,
-        missing: [
-          { type: 'cookie', key: 'next-auth.session-token' }
-        ]
       }
     ];
   },
@@ -29,6 +21,12 @@ const nextConfig = {
       '@/types': './src/types'
     };
     return config;
+  },
+  experimental: {
+    serverActions: true,
+    serverActionsBodySizeLimit: '2mb',
+    trace: true,
+    logging: 'verbose'
   },
   env: {
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',

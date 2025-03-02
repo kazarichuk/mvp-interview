@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "npm install && next build"
+    "vercel-build": "npm install && next build --debug"
   },
   "dependencies": {
     "@auth/firebase-adapter": "^2.0.1",

@@ -1,15 +1,11 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "next.config.js",
-      "use": "@vercel/node"
-    }
+    { "src": "next.config.js", "use": "@vercel/next" }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
+    { "src": "/", "destination": "/auth/login" },
+    { "src": "/auth/(.*)", "destination": "/auth/$1" },
+    { "src": "/(.*)", "destination": "/$1" }
   ]
 }

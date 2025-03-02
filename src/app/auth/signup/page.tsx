@@ -1,5 +1,3 @@
-'use client';
-
 import { Metadata } from 'next';
 import SignupForm from '@/components/auth/SignupForm';
 
