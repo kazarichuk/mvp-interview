@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -34,25 +35,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
 
       // Если пользователь не авторизован и пытается получить доступ к защищенным маршрутам
-      if (!user && window.location.pathname.startsWith('/dashboard')) {
+      if (!user && pathname.startsWith('/dashboard')) {
         router.push('/auth/login');
       }
 
       // Если пользователь авторизован и находится на странице входа/регистрации
       if (user && (
-        window.location.pathname.startsWith('/auth/login') ||
-        window.location.pathname.startsWith('/auth/signup')
+        pathname.startsWith('/auth/login') ||
+        pathname.startsWith('/auth/signup')
       )) {
         router.push('/dashboard');
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, pathname]);
 
   return (
     <AuthContext.Provider value={{ user, loading }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

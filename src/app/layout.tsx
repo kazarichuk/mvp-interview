@@ -1,22 +1,29 @@
-// src/app/layout.tsx (удалите "use client")
-import { Inter } from 'next/font/google'
-import { ClientLayout } from '@/components/ClientLayout'
-import '@/styles/tailwind.css'
+import { Inter } from 'next/font/google';
+import { AuthProvider } from '@/components/providers/AuthProvider';
+import '@/styles/tailwind.css';
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata = {
+  title: 'HireFlick',
+  description: 'AI-Driven Recruitment Platform',
+  icons: {
+    icon: '/favicon.ico',
+  },
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-background`}>
-        <ClientLayout>
+        <AuthProvider>
           {children}
-        </ClientLayout>
+        </AuthProvider>
       </body>
     </html>
-  )
+  );
 }
