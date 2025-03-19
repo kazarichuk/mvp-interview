@@ -1,45 +1,49 @@
-// src/components/candidates/TableRow.tsx
 "use client"
 
 import React from 'react'
-import { FileText } from 'lucide-react'
+import { FileText, Eye, Award } from 'lucide-react'
 import { Candidate } from './CandidatesTable'
-import { 
-  HoverCard, 
-  HoverCardContent, 
-  HoverCardTrigger 
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
 } from "@/components/ui/hover-card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import DeleteCandidateDialog from './DeleteCandidateDialog'
 
 interface TableRowProps {
-  candidate: Candidate & { 
-    level?: string 
-    score?: number 
+  candidate: Candidate & {
+    level?: string
+    score?: number
+    inviteId?: string
   }
   onDelete: (id: string) => void
   onShowResults: () => void
 }
 
-export const TableRow: React.FC<TableRowProps> = ({ 
-  candidate, 
-  onDelete, 
+export const TableRow: React.FC<TableRowProps> = ({
+  candidate,
+  onDelete,
   onShowResults
 }) => {
   // Truncate long names with hover card
   const TruncatedName: React.FC = () => {
-    const maxLength = 10
+    const maxLength = 15
     if (candidate.name.length <= maxLength) {
       return <>{candidate.name}</>
     }
 
     return (
       <HoverCard openDelay={100} closeDelay={100}>
-        <HoverCardTrigger className="cursor-default">
+        <HoverCardTrigger className="cursor-default underline underline-offset-2 decoration-dotted">
           <span>{`${candidate.name.slice(0, maxLength)}...`}</span>
         </HoverCardTrigger>
-        <HoverCardContent 
-          side="right" 
-          align="start" 
-          className="bg-white shadow-lg border rounded-md p-2 text-sm"
+        <HoverCardContent
+          side="right"
+          align="start"
+          className="bg-white shadow-lg border rounded-md p-2 text-sm w-auto"
         >
           {candidate.name}
         </HoverCardContent>
@@ -47,17 +51,40 @@ export const TableRow: React.FC<TableRowProps> = ({
     )
   }
 
-  // Determine status classes and text
-  const getStatusClasses = (status: string) => {
+  // Truncate email with hover card
+  const TruncatedEmail: React.FC = () => {
+    const maxLength = 18
+    if (!candidate.email || candidate.email.length <= maxLength) {
+      return <>{candidate.email}</>
+    }
+
+    return (
+      <HoverCard openDelay={100} closeDelay={100}>
+        <HoverCardTrigger className="cursor-default underline underline-offset-2 decoration-dotted">
+          <span>{`${candidate.email.slice(0, maxLength)}...`}</span>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="right"
+          align="start"
+          className="bg-white shadow-lg border rounded-md p-2 text-sm w-auto"
+        >
+          {candidate.email}
+        </HoverCardContent>
+      </HoverCard>
+    )
+  }
+
+  // Determine status variant
+  const getStatusVariant = (status: string): "default" | "destructive" | "outline" | "secondary" | null | undefined => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800 border border-green-200'
+        return "default"
       case 'pending':
-        return 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+        return "secondary"
       case 'failed':
-        return 'bg-red-50 text-red-600 border border-red-200'
+        return "destructive"
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200'
+        return "outline"
     }
   }
 
@@ -88,8 +115,8 @@ export const TableRow: React.FC<TableRowProps> = ({
   const getAvatarColor = (name: string) => {
     const colors = [
       'bg-blue-500',
-      'bg-green-500',
-      'bg-yellow-500',
+      'bg-emerald-500',
+      'bg-amber-500',
       'bg-purple-500',
       'bg-pink-500',
       'bg-indigo-500',
@@ -103,76 +130,98 @@ export const TableRow: React.FC<TableRowProps> = ({
     return colors[colorIndex]
   }
 
+  // Score color based on value
+  const getScoreColor = (score?: number) => {
+    if (score === undefined) return "text-gray-400"
+    if (score >= 80) return "text-emerald-600 font-medium"
+    if (score >= 60) return "text-amber-600"
+    return "text-red-600"
+  }
+
   return (
-    <tr className="border-t border-gray-100 hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <div 
-            className={`h-10 w-10 rounded-full flex-shrink-0 mr-3 flex items-center justify-center text-white font-medium ${getAvatarColor(candidate.name)}`}
+    <tr className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <div
+            className={`h-8 w-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-medium ${getAvatarColor(candidate.name)}`}
           >
             {getInitials(candidate.name)}
           </div>
-          <div className="font-medium text-gray-900">
+          <div className="font-medium">
             <TruncatedName />
           </div>
         </div>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-gray-600">{candidate.email}</div>
+      <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
+        <div className="text-sm text-muted-foreground">
+          <TruncatedEmail />
+        </div>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="hidden lg:table-cell px-3 py-3 whitespace-nowrap">
         {candidate.cv ? (
-          <a
-            href={candidate.cv.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center text-blue-600 hover:text-blue-800"
-          >
-            <FileText className="h-4 w-4 mr-1" />
-            {candidate.cv.filename}
-          </a>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={candidate.cv.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center text-primary hover:text-primary/80"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="sr-only">{candidate.cv.filename}</span>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>View CV: {candidate.cv.filename}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
-          <span className="text-gray-400">No CV</span>
+          <span className="text-muted-foreground text-sm italic">None</span>
         )}
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-gray-600">{candidate.level || 'N/A'}</div>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className="flex items-center text-sm">
+          <Award className="h-3.5 w-3.5 mr-1 text-amber-500" />
+          {candidate.level || 'N/A'}
+        </div>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-gray-600">{candidate.score !== undefined ? `${candidate.score}/100` : 'N/A'}</div>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className={`text-sm ${getScoreColor(candidate.score)}`}>
+          {candidate.score !== undefined ? `${candidate.score}` : '-'}
+        </div>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span 
-          className={`px-3 py-1 text-xs rounded-md ${getStatusClasses(candidate.status)}`}
-        >
+      <td className="px-3 py-3 whitespace-nowrap">
+        <Badge variant={getStatusVariant(candidate.status)} className="text-xs font-normal">
           {getStatusText(candidate.status)}
-        </span>
+        </Badge>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap text-right">
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            className={`text-blue-600 hover:text-blue-800 text-sm font-medium 
-              ${candidate.status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
+      <td className="px-3 py-3 whitespace-nowrap text-right">
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-8 px-2 ${candidate.status !== 'completed' ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={candidate.status !== 'completed'}
             onClick={onShowResults}
           >
-            Show Results
-          </button>
+            <Eye className="h-3.5 w-3.5 mr-1" />
+            <span className="text-xs">Results</span>
+          </Button>
 
-          <button
-            type="button"
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
-            onClick={() => onDelete(candidate.id)}
-          >
-            Delete
-          </button>
+          <DeleteCandidateDialog
+            candidateId={candidate.id}
+            candidateName={candidate.name}
+            inviteId={candidate.inviteId}
+            onDelete={onDelete}
+          />
         </div>
       </td>
     </tr>

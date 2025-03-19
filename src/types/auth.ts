@@ -1,5 +1,6 @@
 // src/types/auth.ts
 import { User } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 
 export interface AuthError {
   code: string;
@@ -21,12 +22,24 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   emailVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  lastLogin: Date;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  lastLogin: Date | Timestamp;
   company?: string;
   role?: string;
+  teamSize?: string;
+  bio?: string;
   provider?: 'google.com' | 'password';
+  notifications?: {
+    email?: boolean;
+    newCandidates?: boolean;
+    results?: boolean;
+    marketing?: boolean;
+  };
+  privacy?: {
+    dataCollection?: boolean;
+    shareResults?: boolean;
+  };
 }
 
 export interface AuthContextType {
