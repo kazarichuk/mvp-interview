@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mic, MicOff, Camera, CameraOff, Loader2, XCircle, CheckCircle, Clock } from 'lucide-react';
-import { Progress } from "@/components/ui/progress";
+import { SimpleProgress } from "@/components/ui/simple-progress";
 import Image from 'next/image';
 
 // API URL для Python-бэкенда
@@ -482,7 +482,7 @@ export default function InterviewSessionPage() {
             
             <div className="bg-blue-50 p-4 rounded-md text-blue-800">
               <p>Перенаправляем вас на страницу с результатами...</p>
-              <Progress value={100} className="mt-2 animate-pulse" />
+              <SimpleProgress value={100} className="mt-2 animate-pulse" />
             </div>
           </CardContent>
         </Card>
@@ -614,7 +614,7 @@ export default function InterviewSessionPage() {
                      <span>Questions: {progress.questions_asked}/{progress.max_questions}</span>
                      <span>{Math.round((progress.questions_asked / progress.max_questions) * 100)}%</span>
                    </div>
-                   <Progress value={(progress.questions_asked / progress.max_questions) * 100} />
+                   <SimpleProgress value={(progress.questions_asked / progress.max_questions) * 100} />
                  </div>
                  
                  <div className="space-y-1">
@@ -622,7 +622,7 @@ export default function InterviewSessionPage() {
                      <span>Time: {Math.round(progress.elapsed_minutes)}/{progress.max_duration_minutes} min</span>
                      <span>{Math.round((progress.elapsed_minutes / progress.max_duration_minutes) * 100)}%</span>
                    </div>
-                   <Progress value={(progress.elapsed_minutes / progress.max_duration_minutes) * 100} />
+                   <SimpleProgress value={(progress.elapsed_minutes / progress.max_duration_minutes) * 100} />
                  </div>
                  
                  {currentTopic && (
