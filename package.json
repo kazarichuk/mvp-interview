@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "npm install && npx tailwindcss init -p && next build --debug"
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@auth/firebase-adapter": "^2.0.1",
