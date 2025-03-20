@@ -12,6 +12,18 @@ import { Loader2, AlertCircle, UserPlus, Mail, Link, Lightbulb } from 'lucide-re
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs, 
+  addDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 // Type for candidate data
 export interface Candidate {
@@ -54,9 +66,21 @@ export const CandidatesTable: React.FC = () => {
 
       setLoading(true);
       try {
-        // В будущем здесь будет фактическая загрузка данных из Firebase
-        // Для начала просто устанавливаем пустой массив, чтобы показать "пустое состояние"
-        setCandidates([]);
+        // Получаем кандидатов из Firestore
+        const candidatesRef = collection(db, 'candidates');
+        const q = query(
+          candidatesRef,
+          where("createdBy", "==", auth.currentUser.uid),
+          orderBy("createdAt", "desc")
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const candidateData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Candidate[];
+        
+        setCandidates(candidateData);
       } catch (err: any) {
         console.error('Error fetching candidates:', err);
         setError(err.message || 'Failed to load candidates');
@@ -69,16 +93,47 @@ export const CandidatesTable: React.FC = () => {
   }, [filter]);
 
   // Handle candidate deletion
-  const handleDeleteCandidate = (id: string) => {
-    setCandidates(candidates.filter(candidate => candidate.id !== id))
+  const handleDeleteCandidate = async (id: string) => {
+    try {
+      // Удаление из Firestore
+      const docRef = doc(db, 'candidates', id);
+      await deleteDoc(docRef);
+      
+      // Обновление UI
+      setCandidates(candidates.filter(candidate => candidate.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting candidate:', err);
+      // Можно добавить обработку ошибки
+    }
   }
 
   // Handle adding a candidate
-  const handleAddCandidate = (newCandidate: Omit<Candidate, 'id'>) => {
-    // In a real application, ID would come from the server
-    const id = uuidv4()
-    setCandidates([...candidates, { ...newCandidate, id }])
-  }
+  const handleAddCandidate = async (newCandidate: Omit<Candidate, 'id'>) => {
+    try {
+      if (!auth.currentUser) return;
+      
+      // Добавление в Firestore
+      const candidatesRef = collection(db, 'candidates');
+      const candidateData = {
+        ...newCandidate,
+        createdBy: auth.currentUser.uid,
+        createdAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(candidatesRef, candidateData);
+      
+      // Обновление UI
+      const candidateWithId = { 
+        ...newCandidate, 
+        id: docRef.id 
+      };
+      
+      setCandidates(prev => [...prev, candidateWithId]);
+    } catch (err: any) {
+      console.error('Error adding candidate:', err);
+      // Можно добавить обработку ошибки, например, показать уведомление
+    }
+  };
 
   // Get candidates for current page
   const getCurrentPageCandidates = () => {
