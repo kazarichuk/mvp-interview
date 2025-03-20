@@ -54,71 +54,9 @@ export const CandidatesTable: React.FC = () => {
 
       setLoading(true);
       try {
-        // In a real application, there would be data fetching from Firebase
-        // based on the selected filter and current user
-        
-        // For MVP, we use test data
-        const mockCandidates: Candidate[] = [
-          {
-            id: '1',
-            name: 'Konstantin Kazarichuk',
-            email: 'kazarichuk@gmail.com',
-            cv: {
-              url: '/files/name.pdf',
-              filename: 'name.pdf'
-            },
-            status: 'completed',
-            level: 'Senior UX/UI Designer',
-            score: 87
-          },
-          {
-            id: '2',
-            name: 'John Doe',
-            email: 'johndoe@example.com',
-            cv: {
-              url: '/files/resume.pdf',
-              filename: 'resume.pdf'
-            },
-            status: 'pending',
-            level: 'Mid-Level UX/UI Designer',
-            score: 65
-          },
-          {
-            id: '3',
-            name: 'Alice Smith',
-            email: 'alice@example.com',
-            cv: {
-              url: '/files/name.pdf',
-              filename: 'name.pdf'
-            },
-            status: 'failed',
-            level: 'Junior UX Designer',
-            score: 42
-          },
-          {
-            id: '4',
-            name: 'Emily Johnson',
-            email: 'emily.johnson@company.com',
-            cv: null,
-            status: 'pending',
-            level: 'UX/UI Designer',
-            score: undefined
-          },
-          {
-            id: '5',
-            name: 'Michael Brown with a very long name',
-            email: 'michael.brown@verylongcompanyname.com',
-            cv: {
-              url: '/files/mb_cv.pdf',
-              filename: 'michael_brown_curriculum_vitae.pdf'
-            },
-            status: 'completed',
-            level: 'Senior Product Designer',
-            score: 92
-          }
-        ];
-
-        setCandidates(mockCandidates);
+        // В будущем здесь будет фактическая загрузка данных из Firebase
+        // Для начала просто устанавливаем пустой массив, чтобы показать "пустое состояние"
+        setCandidates([]);
       } catch (err: any) {
         console.error('Error fetching candidates:', err);
         setError(err.message || 'Failed to load candidates');
