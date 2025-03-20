@@ -9,7 +9,7 @@ import { Mic, MicOff, Camera, CameraOff, Loader2, XCircle, CheckCircle, Clock } 
 import { SimpleProgress } from "@/components/ui/simple-progress";
 import Image from 'next/image';
 
-// API URL для Python-бэкенда
+// API URL for Python backend
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
 export default function InterviewSessionPage() {
@@ -17,7 +17,7 @@ export default function InterviewSessionPage() {
   const router = useRouter();
   const sessionId = params.code as string;
   
-  // Состояния
+  // States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
@@ -25,23 +25,23 @@ export default function InterviewSessionPage() {
   const [transcription, setTranscription] = useState<string>('');
   const [aiResponse, setAiResponse] = useState<string>('');
   const [isRecording, setIsRecording] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(300); // 5 минут в секундах
+  const [remainingTime, setRemainingTime] = useState(300); // 5 minutes in seconds
   const [progress, setProgress] = useState<any>(null);
   const [interviewComplete, setInterviewComplete] = useState(false);
   const [evaluation, setEvaluation] = useState<any>(null);
   
-  // Медиа состояния
+  // Media states
   const [micActive, setMicActive] = useState(true);
   const [cameraActive, setCameraActive] = useState(true);
   
-  // Рефы
+  // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Загрузка информации об интервью
+  // Load interview information
   useEffect(() => {
     async function fetchInterviewInfo() {
       try {
@@ -50,36 +50,36 @@ export default function InterviewSessionPage() {
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || 'Не удалось загрузить информацию об интервью');
+          throw new Error(errorData.detail || 'Failed to load interview information');
         }
         
         const data = await response.json();
         
-        // Проверяем статус интервью
+        // Check interview status
         if (data.status === 'pending') {
-          // Интервью еще не начато, перенаправляем на страницу начала
+          // Interview not started yet, redirect to start page
           router.replace(`/interview/${sessionId}`);
           return;
         }
         
         if (data.status === 'completed') {
-          // Интервью уже завершено, перенаправляем на страницу результатов
+          // Interview already completed, redirect to results page
           router.replace(`/interview/${sessionId}/complete`);
           return;
         }
         
-        // Обновляем прогресс
+        // Update progress
         if (data.progress) {
           setProgress(data.progress);
         }
         
-        // Запрашиваем первый вопрос, если это новое интервью
+        // Request first question if this is a new interview
         await fetchNextQuestion();
         
         setLoading(false);
       } catch (err: any) {
         console.error('Error fetching interview info:', err);
-        setError(err.message || 'Ошибка при загрузке интервью');
+        setError(err.message || 'Error loading interview');
         setLoading(false);
       }
     }
@@ -87,14 +87,14 @@ export default function InterviewSessionPage() {
     fetchInterviewInfo();
   }, [sessionId, router]);
   
-  // Управление таймером
+  // Timer management
   useEffect(() => {
     if (currentQuestion && !interviewComplete) {
-      // Запускаем таймер
+      // Start timer
       timerRef.current = setInterval(() => {
         setRemainingTime(prevTime => {
           if (prevTime <= 1) {
-            // Время истекло, останавливаем запись если она активна
+            // Time's up, stop recording if active
             if (isRecording) {
               stopRecording();
             }
@@ -112,33 +112,33 @@ export default function InterviewSessionPage() {
     };
   }, [currentQuestion, interviewComplete, isRecording]);
   
-  // Запрос доступа к медиа-устройствам
+  // Request media device access
   useEffect(() => {
     async function setupMedia() {
       try {
-        // Запрашиваем доступ к микрофону и камере
+        // Request access to microphone and camera
         const constraints = {
           audio: micActive,
           video: cameraActive ? { width: 640, height: 480 } : false
         };
         
-        // Останавливаем предыдущий медиа-поток, если он есть
+        // Stop previous media stream if it exists
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
         }
         
-        // Запрашиваем новый поток с обновленными параметрами
+        // Request new stream with updated parameters
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
         
-        // Обновляем видео-элемент, если камера включена
+        // Update video element if camera is enabled
         if (videoRef.current && cameraActive) {
           videoRef.current.srcObject = stream;
         }
       } catch (err) {
         console.error('Error accessing media devices:', err);
         if (micActive) {
-          setError('Не удалось получить доступ к микрофону. Проверьте разрешения в браузере.');
+          setError('Could not access microphone. Please check browser permissions.');
         }
       }
     }
@@ -146,21 +146,21 @@ export default function InterviewSessionPage() {
     setupMedia();
     
     return () => {
-      // Очищаем медиа-потоки при размонтировании компонента
+      // Clean up media streams when component unmounts
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
   }, [micActive, cameraActive]);
   
-  // Форматирование времени для отображения
+  // Format time for display
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   
-  // Запуск записи аудио
+  // Start audio recording
   const startRecording = async () => {
     try {
       if (!streamRef.current) {
@@ -190,11 +190,11 @@ export default function InterviewSessionPage() {
       
     } catch (err) {
       console.error('Error starting recording:', err);
-      setError('Не удалось начать запись. Проверьте разрешения для микрофона.');
+      setError('Failed to start recording. Check microphone permissions.');
     }
   };
   
-  // Остановка записи аудио
+  // Stop audio recording
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -202,16 +202,16 @@ export default function InterviewSessionPage() {
     }
   };
   
-  // Отправка аудио-ответа на сервер
+  // Submit audio answer to server
   const submitAudioAnswer = async (audioBlob: Blob) => {
     try {
       setLoading(true);
       
-      // Создаем форму с аудио-данными
+      // Create form with audio data
       const formData = new FormData();
       formData.append('audio', audioBlob, 'answer.wav');
       
-      // Отправляем на сервер
+      // Send to server
       const response = await fetch(`${API_URL}/process-answer/${sessionId}`, {
         method: 'POST',
         body: formData
@@ -219,24 +219,24 @@ export default function InterviewSessionPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Не удалось обработать ваш ответ');
+        throw new Error(errorData.detail || 'Failed to process your answer');
       }
       
       const data = await response.json();
       
-      // Обновляем UI с ответом
+      // Update UI with response
       setTranscription(data.transcription);
       setAiResponse(data.response);
       
-      // Обновляем прогресс
+      // Update progress
       if (data.progress) {
         setProgress(data.progress);
       }
       
-      // Сбрасываем таймер
+      // Reset timer
       setRemainingTime(300);
       
-      // Проверяем, завершено ли интервью
+      // Check if interview is complete
       if (data.interview_complete) {
         setInterviewComplete(true);
         if (data.evaluation) {
@@ -246,12 +246,12 @@ export default function InterviewSessionPage() {
           });
         }
         
-        // Перенаправляем на страницу результатов через 5 секунд
+        // Redirect to results page after 5 seconds
         setTimeout(() => {
           router.push(`/interview/${sessionId}/complete`);
         }, 5000);
       } else if (data.next_question) {
-        // Устанавливаем следующий вопрос с небольшой задержкой
+        // Set next question with a small delay
         setTimeout(() => {
           setCurrentQuestion(data.next_question);
           setCurrentTopic(data.next_topic || null);
@@ -262,12 +262,12 @@ export default function InterviewSessionPage() {
       
     } catch (err: any) {
       console.error('Error submitting answer:', err);
-      setError(err.message || 'Не удалось отправить ваш ответ');
+      setError(err.message || 'Failed to submit your answer');
       setLoading(false);
     }
   };
   
-  // Отправка текстового ответа (для тестирования)
+  // Submit text answer (for testing)
   const submitTextAnswer = async (text: string) => {
     try {
       setLoading(true);
@@ -282,24 +282,24 @@ export default function InterviewSessionPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Не удалось обработать ваш ответ');
+        throw new Error(errorData.detail || 'Failed to process your answer');
       }
       
       const data = await response.json();
       
-      // Обновляем UI с ответом
+      // Update UI with response
       setTranscription(data.transcription);
       setAiResponse(data.response);
       
-      // Обновляем прогресс
+      // Update progress
       if (data.progress) {
         setProgress(data.progress);
       }
       
-      // Сбрасываем таймер
+      // Reset timer
       setRemainingTime(300);
       
-      // Проверяем, завершено ли интервью
+      // Check if interview is complete
       if (data.interview_complete) {
         setInterviewComplete(true);
         if (data.evaluation) {
@@ -309,12 +309,12 @@ export default function InterviewSessionPage() {
           });
         }
         
-        // Перенаправляем на страницу результатов через 5 секунд
+        // Redirect to results page after 5 seconds
         setTimeout(() => {
           router.push(`/interview/${sessionId}/complete`);
         }, 5000);
       } else if (data.next_question) {
-        // Устанавливаем следующий вопрос
+        // Set next question
         setCurrentQuestion(data.next_question);
         setCurrentTopic(data.next_topic || null);
       }
@@ -323,12 +323,12 @@ export default function InterviewSessionPage() {
       
     } catch (err: any) {
       console.error('Error submitting text answer:', err);
-      setError(err.message || 'Не удалось отправить ваш текстовый ответ');
+      setError(err.message || 'Failed to submit your text answer');
       setLoading(false);
     }
   };
   
-  // Получение следующего вопроса
+  // Get next question
   const fetchNextQuestion = async () => {
     try {
       const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
@@ -337,43 +337,43 @@ export default function InterviewSessionPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: "Candidate", // это уже должно быть установлено на сервере
-          email: "candidate@example.com", // это уже должно быть установлено на сервере
+          name: "Candidate", // this should already be set on the server
+          email: "candidate@example.com", // this should already be set on the server
           position: "UX/UI Designer"
         })
       });
       
       if (!response.ok) {
-        // Если начать не получилось, пробуем получить текущее состояние интервью
+        // If starting fails, try to get current interview state
         const fallbackResponse = await fetch(`${API_URL}/interview-info/${sessionId}`);
         
         if (!fallbackResponse.ok) {
-          throw new Error('Не удалось получить информацию об интервью');
+          throw new Error('Failed to get interview information');
         }
         
         const data = await fallbackResponse.json();
         
-        // Устанавливаем заглушку для первого вопроса
-        setCurrentQuestion("Расскажите о вашем опыте в UX/UI дизайне. Над какими проектами вы работали и какие методологии используете?");
+        // Set fallback for first question
+        setCurrentQuestion("Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
         setCurrentTopic('general');
       } else {
-        // Интервью успешно начато
+        // Interview successfully started
         const data = await response.json();
         setCurrentQuestion(data.first_question);
         setCurrentTopic(data.current_topic);
       }
       
-      setRemainingTime(300); // 5 минут на ответ
+      setRemainingTime(300); // 5 minutes for an answer
       
     } catch (err: any) {
       console.error('Error fetching next question:', err);
-      setError(err.message || 'Не удалось загрузить следующий вопрос');
+      setError(err.message || 'Failed to load the next question');
     }
   };
   
-  // Завершение интервью досрочно
+  // End interview early
   const endInterviewEarly = async () => {
-    if (window.confirm("Вы уверены, что хотите завершить интервью досрочно? Ваш прогресс будет сохранен.")) {
+    if (window.confirm("Are you sure you want to end the interview early? Your progress will be saved.")) {
       try {
         setLoading(true);
         
@@ -383,23 +383,23 @@ export default function InterviewSessionPage() {
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || 'Не удалось завершить интервью');
+          throw new Error(errorData.detail || 'Failed to end the interview');
         }
         
         const data = await response.json();
         
-        // Перенаправляем на страницу результатов
+        // Redirect to results page
         router.push(`/interview/${sessionId}/complete`);
         
       } catch (err: any) {
         console.error('Error ending interview:', err);
-        setError(err.message || 'Не удалось завершить интервью');
+        setError(err.message || 'Failed to end the interview');
         setLoading(false);
       }
     }
   };
   
-  // Обработчики включения/выключения медиа
+  // Media toggle handlers
   const toggleMicrophone = () => {
     setMicActive(!micActive);
   };
@@ -408,19 +408,19 @@ export default function InterviewSessionPage() {
     setCameraActive(!cameraActive);
   };
   
-  // Показываем загрузку
+  // Show loading
   if (loading && !currentQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Загрузка интервью...</p>
+          <p className="text-gray-600">Loading interview...</p>
         </div>
       </div>
     );
   }
   
-  // Показываем ошибку
+  // Show error
   if (error && !currentQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
@@ -436,7 +436,7 @@ export default function InterviewSessionPage() {
         
         <Card className="w-full max-w-xl">
           <CardHeader>
-            <CardTitle className="text-red-600">Ошибка интервью</CardTitle>
+            <CardTitle className="text-red-600">Interview Error</CardTitle>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive">
@@ -445,7 +445,7 @@ export default function InterviewSessionPage() {
             
             <div className="mt-4">
               <Button onClick={() => window.location.reload()}>
-                Попробовать снова
+                Try Again
               </Button>
             </div>
           </CardContent>
@@ -454,7 +454,7 @@ export default function InterviewSessionPage() {
     );
   }
   
-  // Если интервью завершено
+  // If interview is complete
   if (interviewComplete) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
@@ -472,16 +472,16 @@ export default function InterviewSessionPage() {
           <CardHeader>
             <CardTitle className="text-green-600 flex items-center">
               <CheckCircle className="mr-2 h-6 w-6" />
-              Интервью завершено!
+              Interview Complete!
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-gray-700">
-              Спасибо за участие в интервью! Ваши ответы записаны и будут проанализированы.
+              Thank you for participating in the interview! Your answers have been recorded and will be analyzed.
             </p>
             
             <div className="bg-blue-50 p-4 rounded-md text-blue-800">
-              <p>Перенаправляем вас на страницу с результатами...</p>
+              <p>Redirecting you to the results page...</p>
               <SimpleProgress value={100} className="mt-2 animate-pulse" />
             </div>
           </CardContent>
@@ -490,10 +490,10 @@ export default function InterviewSessionPage() {
     );
   }
   
-  // Основной UI интервью
+  // Main interview UI
   return (
     <div className="bg-gray-50 min-h-screen pb-10">
-      {/* Хедер */}
+      {/* Header */}
       <header className="bg-white border-b py-4 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -529,11 +529,11 @@ export default function InterviewSessionPage() {
      </header>
      
      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-       {/* Левая колонка - видео и контроль */}
+       {/* Left column - video and control */}
        <div className="lg:col-span-1">
          <Card className="mb-4">
            <CardContent className="p-4">
-             {/* Видео */}
+             {/* Video */}
              <div className="relative bg-gray-900 aspect-video rounded-md mb-4 overflow-hidden">
                {cameraActive ? (
                  <video
@@ -549,7 +549,7 @@ export default function InterviewSessionPage() {
                  </div>
                )}
                
-               {/* Индикатор записи */}
+               {/* Recording indicator */}
                {isRecording && (
                  <div className="absolute top-2 right-2 flex items-center bg-red-600 text-white px-2 py-1 rounded-md text-xs animate-pulse">
                    <span className="h-2 w-2 bg-white rounded-full mr-1"></span>
@@ -558,7 +558,7 @@ export default function InterviewSessionPage() {
                )}
              </div>
              
-             {/* Кнопки управления медиа */}
+             {/* Media control buttons */}
              <div className="flex justify-center space-x-2">
                <Button
                  variant={micActive ? "default" : "outline"}
@@ -601,7 +601,7 @@ export default function InterviewSessionPage() {
            </CardContent>
          </Card>
          
-         {/* Прогресс интервью */}
+         {/* Interview progress */}
          <Card>
            <CardHeader className="pb-2">
              <CardTitle className="text-lg">Interview Progress</CardTitle>
@@ -643,9 +643,9 @@ export default function InterviewSessionPage() {
          </Card>
        </div>
        
-       {/* Правая колонка - интервью */}
+       {/* Right column - interview */}
        <div className="lg:col-span-2 space-y-4">
-         {/* Вопрос */}
+         {/* Question */}
          <Card>
            <CardHeader className="pb-2">
              <CardTitle className="text-lg flex items-center">
@@ -666,7 +666,7 @@ export default function InterviewSessionPage() {
            </CardContent>
          </Card>
          
-         {/* Ответ и запись */}
+         {/* Answer and recording */}
          <Card>
            <CardHeader className="pb-2">
              <CardTitle className="text-lg flex items-center">
@@ -730,7 +730,7 @@ export default function InterviewSessionPage() {
            </CardFooter>
          </Card>
          
-         {/* Ответ интервьюера */}
+         {/* Interviewer response */}
          {aiResponse && (
            <Card>
              <CardHeader className="pb-2">
@@ -749,7 +749,7 @@ export default function InterviewSessionPage() {
            </Card>
          )}
          
-         {/* Сообщение об ошибке */}
+         {/* Error message */}
          {error && (
            <Alert variant="destructive">
              <AlertDescription>{error}</AlertDescription>

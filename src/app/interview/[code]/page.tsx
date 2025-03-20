@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from 'next/image';
 import { Mic, Camera, Loader2 } from 'lucide-react';
 
-// API URL для Python-бэкенда
+// API URL for Python backend
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
 export default function InterviewPage() {
@@ -26,23 +26,23 @@ export default function InterviewPage() {
   const [interviewInfo, setInterviewInfo] = useState<any>(null);
 
   useEffect(() => {
-    // Проверяем валидность ссылки интервью
+    // Check the validity of the interview link
     async function checkInvite() {
       try {
         setLoading(true);
         
-        // Запрашиваем информацию об интервью из Python API
+        // Request interview information from Python API
         const response = await fetch(`${API_URL}/interview-info/${inviteCode}`);
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || 'Ссылка на интервью недействительна или истекла');
+          throw new Error(errorData.detail || 'The interview link is invalid or has expired');
         }
         
         const data = await response.json();
         setInterviewInfo(data);
         
-        // Если email кандидата уже есть, заполняем его
+        // If candidate email already exists, fill it in
         if (!emailParam && data.candidate_email) {
           setEmail(data.candidate_email);
         }
@@ -50,7 +50,7 @@ export default function InterviewPage() {
         setLoading(false);
       } catch (err: any) {
         console.error('Error checking invite:', err);
-        setError(err.message || 'Ошибка при загрузке информации об интервью');
+        setError(err.message || 'Error loading interview information');
         setLoading(false);
       }
     }
@@ -64,7 +64,7 @@ export default function InterviewPage() {
     try {
       setLoading(true);
       
-      // Отправляем информацию о кандидате в Python API
+      // Send candidate information to Python API
       const response = await fetch(`${API_URL}/start-interview/${inviteCode}`, {
         method: 'POST',
         headers: {
@@ -79,35 +79,35 @@ export default function InterviewPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Не удалось начать интервью');
+        throw new Error(errorData.detail || 'Failed to start the interview');
       }
       
-      // Получаем данные для начала интервью
+      // Get data to start the interview
       const data = await response.json();
       
-      // Переходим на страницу интервью
+      // Navigate to the interview page
       window.location.href = `/interview/${inviteCode}/session`;
       
     } catch (err: any) {
       console.error('Error starting interview:', err);
-      setError(err.message || 'Не удалось начать интервью');
+      setError(err.message || 'Failed to start the interview');
       setLoading(false);
     }
   };
 
-  // Показываем загрузку
+  // Show loading state
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Загрузка интервью...</p>
+          <p className="text-gray-600">Loading interview...</p>
         </div>
       </div>
     );
   }
 
-  // Показываем ошибку
+  // Show error state
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
@@ -123,9 +123,9 @@ export default function InterviewPage() {
         
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-red-600">Ошибка интервью</CardTitle>
+            <CardTitle className="text-red-600">Interview Error</CardTitle>
             <CardDescription>
-              Возникла проблема с этой ссылкой на интервью
+              There was a problem with this interview link
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -138,7 +138,7 @@ export default function InterviewPage() {
     );
   }
 
-  // Если интервью уже начато, показываем соответствующее сообщение
+  // If the interview is already active, show appropriate message
   if (interviewInfo?.status === 'active') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
@@ -154,21 +154,21 @@ export default function InterviewPage() {
         
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Интервью уже начато</CardTitle>
+            <CardTitle>Interview Already Started</CardTitle>
             <CardDescription>
-              Это интервью уже в процессе
+              This interview is already in progress
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Вы можете продолжить с того места, на котором остановились.
+              You can continue from where you left off.
             </p>
             
             <Button 
               className="w-full"
               onClick={() => window.location.href = `/interview/${inviteCode}/session`}
             >
-              Продолжить интервью
+              Continue Interview
             </Button>
           </CardContent>
         </Card>
@@ -176,9 +176,9 @@ export default function InterviewPage() {
     );
   }
 
-  // Если интервью завершено, показываем сообщение и перенаправляем
+  // If interview is completed, show message and redirect
   if (interviewInfo?.status === 'completed') {
-    // Перенаправляем на страницу результатов через 3 секунды
+    // Redirect to results page after 3 seconds
     useEffect(() => {
       const timer = setTimeout(() => {
         window.location.href = `/interview/${inviteCode}/complete`;
@@ -201,14 +201,14 @@ export default function InterviewPage() {
         
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Интервью завершено</CardTitle>
+            <CardTitle>Interview Completed</CardTitle>
             <CardDescription>
-              Это интервью уже завершено
+              This interview has already been completed
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Перенаправляем вас на страницу результатов...
+              Redirecting you to the results page...
             </p>
             
             <div className="h-2 bg-gray-200 rounded-full">
@@ -220,7 +220,7 @@ export default function InterviewPage() {
     );
   }
 
-  // Показываем форму для начала интервью
+  // Show form to start the interview
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
       <div className="mb-6">
@@ -235,49 +235,49 @@ export default function InterviewPage() {
 
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>AI-интервью для UX/UI дизайнеров</CardTitle>
+          <CardTitle>AI Interview for UX/UI Designers</CardTitle>
           <CardDescription>
-            Заполните эту форму, чтобы начать интервью с AI
+            Complete this form to start your AI interview
           </CardDescription>
         </CardHeader>
 
         <form onSubmit={handleStartInterview}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Полное имя</Label>
+              <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder="Иван Иванов"
+                placeholder="John Smith"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email адрес</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="ivan@company.com"
-                disabled={!!emailParam} // Отключаем если email передан в URL
+                placeholder="john@company.com"
+                disabled={true} // Always disabled to prevent editing
               />
             </div>
 
             <div className="bg-blue-50 p-4 rounded-md text-sm text-blue-800 space-y-4">
-              <p className="font-medium">Перед началом:</p>
+              <p className="font-medium">Before you begin:</p>
               <div className="flex items-start space-x-2">
                 <Mic className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                <span>Убедитесь, что у вас есть доступ к микрофону и он включен</span>
+                <span>Make sure you have access to a microphone and it's enabled</span>
               </div>
               <div className="flex items-start space-x-2">
                 <Camera className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                <span>Для лучшего опыта рекомендуется использовать камеру (опционально)</span>
+                <span>For the best experience, a camera is recommended (optional)</span>
               </div>
-              <p>Интервью займет примерно 30-60 минут. На каждый вопрос вам дается до 5 минут на ответ.</p>
+              <p>The interview will take approximately 30-60 minutes. You have up to 5 minutes to answer each question.</p>
             </div>
           </CardContent>
 
@@ -290,10 +290,10 @@ export default function InterviewPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Подготовка...
+                  Preparing...
                 </>
               ) : (
-                'Начать интервью'
+                'Start Interview'
               )}
             </Button>
           </CardFooter>
