@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button"
 import { Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { deactivateInvite } from '@/lib/firebase/invites'
-import { auth } from '@/lib/firebase/config'
+import { doc, deleteDoc } from 'firebase/firestore'
+import { db, auth } from '@/lib/firebase/config'
 import { Toast } from '@/components/ui/toast'
 
 // Helper function to show toast
@@ -111,18 +112,33 @@ export const DeleteCandidateDialog: FC<DeleteCandidateDialogProps> = ({
     setError(null)
     
     try {
+      console.log('Starting delete process for candidate:', candidateId);
+      
       // Step 1: If we have an inviteId, deactivate the invite link
       if (inviteId) {
+        console.log('Deactivating invite:', inviteId);
         const result = await deactivateInvite(inviteId, auth.currentUser.uid)
         if (!result.success) {
           throw new Error(result.error || 'Failed to deactivate invite link')
         }
       }
       
-      // Step 2: Trigger the delete action from the parent component
-      onDelete(candidateId)
+      // Step 2: Delete directly from Firestore to ensure it works
+      try {
+        console.log('Deleting candidate from Firestore:', candidateId);
+        const candidateRef = doc(db, 'candidates', candidateId);
+        await deleteDoc(candidateRef);
+        console.log('Successfully deleted from Firestore');
+      } catch (firestoreError) {
+        console.error('Error deleting from Firestore:', firestoreError);
+        throw new Error('Failed to delete from database');
+      }
       
-      // Step 3: Close dialog and show success toast
+      // Step 3: Trigger the delete action from the parent component
+      console.log('Calling parent onDelete function');
+      onDelete(candidateId);
+      
+      // Step 4: Close dialog and show success toast
       setOpen(false)
       
       // Show toast message
@@ -135,6 +151,13 @@ export const DeleteCandidateDialog: FC<DeleteCandidateDialogProps> = ({
     } catch (err: any) {
       console.error('Error deleting candidate:', err)
       setError(err.message || 'Failed to delete candidate')
+      
+      // Show error toast
+      showToast(
+        "Error deleting candidate", 
+        err.message || 'Failed to delete candidate',
+        "error"
+      );
     } finally {
       setDeleting(false)
     }
@@ -175,6 +198,7 @@ export const DeleteCandidateDialog: FC<DeleteCandidateDialogProps> = ({
           <div className="bg-muted p-4 rounded-md">
             <p className="font-medium mb-2">Candidate details:</p>
             <p className="text-sm text-muted-foreground">Name: <span className="font-medium text-foreground">{candidateName}</span></p>
+            <p className="text-sm text-muted-foreground">ID: <span className="font-medium text-foreground">{candidateId}</span></p>
             {inviteId && (
               <p className="text-sm text-muted-foreground mt-1">
                 <span className="text-destructive font-medium">Note:</span> Their interview invitation link will be deactivated.
