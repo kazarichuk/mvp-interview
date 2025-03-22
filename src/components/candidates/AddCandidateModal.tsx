@@ -75,41 +75,41 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
     setEmailSendStatus('not_sent')
     setPythonApiStatus('not_validated')
 
+    // Установка глобального таймаута для всего процесса
+    const globalTimeoutId = setTimeout(() => {
+      if (loading) {
+        console.log("Global timeout triggered - forcing completion")
+        setLoading(false)
+        // Если мы прошли валидацию Python API и добавление кандидата, но зависли на email
+        if (pythonApiStatus !== 'not_validated' && emailSendStatus === 'sending') {
+          setEmailSendStatus('failed')
+          setError("Email sending timed out. Candidate was added but notification email may not have been sent.")
+        } else {
+          setError("The operation timed out. Please try again or check if the candidate was added.")
+        }
+      }
+    }, 15000) // 15 секунд максимум на весь процесс
+
     try {
       // Check that user is authenticated
       const user = auth.currentUser
       if (!user) {
+        clearTimeout(globalTimeoutId)
         throw new Error('You must be logged in to send invites')
       }
 
+      console.log("Creating invitation")
       // Create invitation with maximum validity of 24 hours
       const inviteResult = await createInvite(user.uid, position, 1)
       
       if (!inviteResult.success || !inviteResult.inviteCode) {
+        clearTimeout(globalTimeoutId)
         throw new Error('Failed to create invite')
       }
 
+      console.log("Invitation created:", inviteResult)
       // Generate full invitation link
       const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL}/interview/${inviteResult.inviteCode}`
-
-      // Validate with Python API
-      setPythonApiStatus('validating')
-      try {
-        const pythonValidation = await validateInterviewSession(inviteResult.inviteCode, email)
-        
-        if (pythonValidation.success) {
-          console.log('Python API validation successful:', pythonValidation.data)
-          setPythonApiStatus('validated')
-        } else {
-          console.warn('Python API validation failed, but continuing with Firebase flow:', pythonValidation.error)
-          setPythonApiStatus('failed')
-          // Продолжаем процесс даже при ошибке
-        }
-      } catch (e) {
-        console.error('Python API validation error:', e)
-        setPythonApiStatus('failed')
-        // Продолжаем процесс даже при ошибке
-      }
 
       // Prepare data for adding a candidate
       const candidateData: any = {
@@ -125,30 +125,17 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
         candidateData.cvFilename = file.name
       }
 
-      // Add candidate
+      console.log("Adding candidate to database")
+      // Add candidate to Firebase first
       const candidateResult = await addCandidate(inviteResult.id, candidateData)
 
       if (!candidateResult.success) {
+        clearTimeout(globalTimeoutId)
         throw new Error(candidateResult.error || 'Failed to add candidate')
       }
 
-      // Send invitation email
-      setEmailSendStatus('sending')
-      const emailResult = await sendInterviewInviteEmail({
-        to: email,
-        name,
-        inviteLink,
-        position
-      })
-
-      if (!emailResult.success) {
-        setEmailSendStatus('failed')
-        console.warn('Email sending failed:', emailResult.error)
-      } else {
-        setEmailSendStatus('sent')
-      }
-
-      // Create candidate in the table
+      console.log("Candidate added successfully:", candidateResult)
+      // Create candidate in the table - делаем это до вызова потенциально зависающих операций
       const newCandidate: Omit<Candidate, 'id'> = {
         name,
         email,
@@ -160,18 +147,99 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
         level: position
       }
 
+      // Add candidate to UI immediately
       onAddCandidate(newCandidate)
 
+      // Start both operations in parallel
+      const operations = []
+      
+      // 1. Python API validation with timeout
+      console.log("Starting Python API validation")
+      setPythonApiStatus('validating')
+      const pythonPromise = new Promise<void>(resolve => {
+        const pythonTimeoutId = setTimeout(() => {
+          console.log("Python API validation timed out")
+          setPythonApiStatus('failed')
+          resolve()
+        }, 5000) // 5 секунд максимум на валидацию
+
+        validateInterviewSession(inviteResult.inviteCode, email)
+          .then(result => {
+            clearTimeout(pythonTimeoutId)
+            if (result.success) {
+              console.log('Python API validation successful:', result.data)
+              setPythonApiStatus('validated')
+            } else {
+              console.warn('Python API validation failed:', result.error)
+              setPythonApiStatus('failed')
+            }
+            resolve()
+          })
+          .catch(e => {
+            clearTimeout(pythonTimeoutId)
+            console.error('Python API validation error:', e)
+            setPythonApiStatus('failed')
+            resolve()
+          })
+      })
+      operations.push(pythonPromise)
+
+      // 2. Email sending with timeout
+      console.log("Starting email sending")
+      setEmailSendStatus('sending')
+      const emailPromise = new Promise<void>(resolve => {
+        const emailTimeoutId = setTimeout(() => {
+          console.log("Email sending timed out")
+          setEmailSendStatus('failed')
+          resolve()
+        }, 8000) // 8 секунд максимум на отправку email
+
+        sendInterviewInviteEmail({
+          to: email,
+          name,
+          inviteLink,
+          position
+        })
+          .then(result => {
+            clearTimeout(emailTimeoutId)
+            if (!result.success) {
+              console.warn('Email sending failed:', result.error)
+              setEmailSendStatus('failed')
+            } else {
+              console.log('Email sent successfully')
+              setEmailSendStatus('sent')
+            }
+            resolve()
+          })
+          .catch(err => {
+            clearTimeout(emailTimeoutId)
+            console.error('Email sending error:', err)
+            setEmailSendStatus('failed')
+            resolve()
+          })
+      })
+      operations.push(emailPromise)
+
+      // Wait for both operations to complete or timeout
+      // Use Promise.allSettled so we still continue even if some operations fail
+      console.log("Waiting for operations to complete or timeout")
+      await Promise.allSettled(operations)
+      console.log("All operations completed or timed out")
+
       // Close modal after short delay to show success message
+      console.log("Setting timeout to close modal")
       setTimeout(() => {
         setOpen(false)
+        console.log("Modal closed")
       }, 1500)
 
     } catch (err: any) {
       console.error('Submit error:', err)
       setError(err.message || 'An unexpected error occurred')
     } finally {
+      clearTimeout(globalTimeoutId) // Очищаем глобальный таймаут
       setLoading(false)
+      console.log("Form submission completed")
     }
   }
 
