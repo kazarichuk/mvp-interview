@@ -94,14 +94,21 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
 
       // Validate with Python API
       setPythonApiStatus('validating')
-      const pythonValidation = await validateInterviewSession(inviteResult.inviteCode, email)
-      
-      if (pythonValidation.success) {
-        console.log('Python API validation successful:', pythonValidation.data)
-        setPythonApiStatus('validated')
-      } else {
-        console.warn('Python API validation failed, but continuing with Firebase flow:', pythonValidation.error)
+      try {
+        const pythonValidation = await validateInterviewSession(inviteResult.inviteCode, email)
+        
+        if (pythonValidation.success) {
+          console.log('Python API validation successful:', pythonValidation.data)
+          setPythonApiStatus('validated')
+        } else {
+          console.warn('Python API validation failed, but continuing with Firebase flow:', pythonValidation.error)
+          setPythonApiStatus('failed')
+          // Продолжаем процесс даже при ошибке
+        }
+      } catch (e) {
+        console.error('Python API validation error:', e)
         setPythonApiStatus('failed')
+        // Продолжаем процесс даже при ошибке
       }
 
       // Prepare data for adding a candidate

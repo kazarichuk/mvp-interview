@@ -303,24 +303,35 @@ export const updateCandidateStatus = async (
     return { success: false, error: error.message };
   }
 };
-// Функция для валидации сессии интервью в Python API
+// Функция для валидации сессии интервью в Python API с таймаутом
 export const validateInterviewSession = async (inviteCode: string, email: string) => {
   try {
     const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
+    
+    // Создаем AbortController для таймаута
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
+    // Устанавливаем таймаут 10 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд
     
     // Создаем FormData для совместимости с API
     const formData = new FormData();
     formData.append('session_id', inviteCode);
     formData.append('candidate_email', email);
     
-    // Отправляем запрос в Python API
+    // Отправляем запрос в Python API с сигналом для таймаута
     const response = await fetch(`${API_URL}/validate-interview-session`, {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal: signal
     });
     
+    // Очищаем таймаут, так как запрос завершен
+    clearTimeout(timeoutId);
+    
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ detail: 'Response error' }));
       throw new Error(errorData.detail || 'Failed to validate interview session');
     }
     
@@ -329,6 +340,15 @@ export const validateInterviewSession = async (inviteCode: string, email: string
     
   } catch (error: any) {
     console.error('Error validating interview session:', error);
+    
+    // Более специфичное сообщение об ошибке для случая таймаута
+    if (error.name === 'AbortError') {
+      return { 
+        success: false, 
+        error: 'Validation request timed out. The interview system may be temporarily unavailable.'
+      };
+    }
+    
     return { 
       success: false, 
       error: error.message || 'An error occurred while validating the interview session'
