@@ -1,5 +1,7 @@
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 import '@/styles/tailwind.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -22,6 +24,8 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-background`}>
         <AuthProvider>
           {children}
+          <SpeedInsights />
+          <Analytics />
         </AuthProvider>
       </body>
     </html>
