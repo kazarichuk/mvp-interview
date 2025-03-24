@@ -125,7 +125,9 @@ export default function InterviewSessionPage() {
   
   // Load interview on mount
   useEffect(() => {
-    interview.fetchInterviewInfo();
+    if (!interview.isInitialized) {
+      interview.fetchInterviewInfo();
+    }
   }, [interview]);
   
   // Media toggle handlers

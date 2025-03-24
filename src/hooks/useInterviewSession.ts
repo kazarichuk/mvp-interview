@@ -25,6 +25,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   const [evaluation, setEvaluation] = useState<any>(null);
   const [useTextInput, setUseTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Fetch initial interview info
   const fetchInterviewInfo = useCallback(async () => {
@@ -58,9 +59,13 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       if (data.progress) {
         setProgress(data.progress);
       }
-      
-      // Request first question
-      await fetchNextQuestion();
+
+      // If interview is active but not initialized, get current question
+      if (data.status === 'active' && !isInitialized) {
+        setCurrentQuestion(data.current_question || "Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
+        setCurrentTopic(data.current_topic || 'general');
+        setIsInitialized(true);
+      }
       
       setLoading(false);
     } catch (err: any) {
@@ -68,22 +73,22 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       setError(err.message || 'Error loading interview');
       setLoading(false);
     }
-  }, [sessionId, router]);
+  }, [sessionId, router, isInitialized]);
   
   // Fetch next question or start interview
   const fetchNextQuestion = useCallback(async () => {
+    if (isInitialized) {
+      console.log('Interview already initialized, skipping fetchNextQuestion');
+      return;
+    }
+
     try {
       console.log('Fetching next question...');
       const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: "Candidate",
-          email: "candidate@example.com",
-          position: "UX/UI Designer"
-        })
+        }
       });
       
       if (!response.ok) {
@@ -95,16 +100,21 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
           throw new Error('Failed to get interview information');
         }
         
+        const fallbackData = await fallbackResponse.json();
         console.log('Using fallback question');
-        // Set fallback for first question
-        setCurrentQuestion("Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
-        setCurrentTopic('general');
+        
+        if (fallbackData.status === 'active') {
+          setCurrentQuestion(fallbackData.current_question || "Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
+          setCurrentTopic(fallbackData.current_topic || 'general');
+          setIsInitialized(true);
+        }
       } else {
         // Interview successfully started
         const data = await response.json();
         console.log('Interview started, first question received:', data);
         setCurrentQuestion(data.first_question);
         setCurrentTopic(data.current_topic);
+        setIsInitialized(true);
       }
       
       setRemainingTime(300); // 5 minutes for an answer
@@ -113,7 +123,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       console.error('Error fetching next question:', err);
       setError(err.message || 'Failed to load the next question');
     }
-  }, [sessionId]);
+  }, [sessionId, isInitialized]);
   
   // Submit audio answer
   const submitAudioAnswer = useCallback(async (audioBlob: Blob) => {
@@ -289,6 +299,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     setUseTextInput(!useTextInput);
   }, [useTextInput]);
   
+  // Return hook interface
   return {
     loading,
     error,
@@ -303,13 +314,14 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     interviewComplete,
     evaluation,
     useTextInput,
-    setUseTextInput,
     textInput,
     setTextInput,
+    isInitialized,
     fetchInterviewInfo,
+    fetchNextQuestion,
     submitAudioAnswer,
     submitTextAnswer,
     endInterviewEarly,
-    toggleInputMode
+    toggleInputMode: () => setUseTextInput(!useTextInput)
   };
 }
