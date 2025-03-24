@@ -14,8 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Expose the port the app runs on
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV API_HOST=0.0.0.0
+ENV API_PORT=8000
+
+# Expose the port
 EXPOSE 8000
 
-# Command to run the application
+# Run the application
 CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"] 
