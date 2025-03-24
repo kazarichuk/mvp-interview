@@ -1,116 +1,61 @@
+// src/app/interview/[code]/session/page.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mic, MicOff, Camera, CameraOff, Loader2, XCircle, CheckCircle, Clock } from 'lucide-react';
 import { SimpleProgress } from "@/components/ui/simple-progress";
 import Image from 'next/image';
 
-// API URL for Python backend
-const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
+// Import custom hooks and components
+import useAudioRecorder from '@/hooks/useAudioRecorder';
+import useInterviewSession from '@/hooks/useInterviewSession';
+import CandidateAnswerCard from '@/components/interview/CandidateAnswerCard';
 
 export default function InterviewSessionPage() {
   const params = useParams();
-  const router = useRouter();
   const sessionId = params.code as string;
-  
-  // States
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
-  const [currentTopic, setCurrentTopic] = useState<string | null>(null);
-  const [transcription, setTranscription] = useState<string>('');
-  const [aiResponse, setAiResponse] = useState<string>('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(300); // 5 minutes in seconds
-  const [progress, setProgress] = useState<any>(null);
-  const [interviewComplete, setInterviewComplete] = useState(false);
-  const [evaluation, setEvaluation] = useState<any>(null);
   
   // Media states
   const [micActive, setMicActive] = useState(true);
   const [cameraActive, setCameraActive] = useState(true);
   
   // Refs
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Load interview information
-  useEffect(() => {
-    async function fetchInterviewInfo() {
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_URL}/interview-info/${sessionId}`);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to load interview information');
-        }
-        
-        const data = await response.json();
-        
-        // Check interview status
-        if (data.status === 'pending') {
-          // Interview not started yet, redirect to start page
-          router.replace(`/interview/${sessionId}`);
-          return;
-        }
-        
-        if (data.status === 'completed') {
-          // Interview already completed, redirect to results page
-          router.replace(`/interview/${sessionId}/complete`);
-          return;
-        }
-        
-        // Update progress
-        if (data.progress) {
-          setProgress(data.progress);
-        }
-        
-        // Request first question if this is a new interview
-        await fetchNextQuestion();
-        
-        setLoading(false);
-      } catch (err: any) {
-        console.error('Error fetching interview info:', err);
-        setError(err.message || 'Error loading interview');
-        setLoading(false);
-      }
-    }
-    
-    fetchInterviewInfo();
-  }, [sessionId, router]);
+  // Use interview session hook
+  const interview = useInterviewSession({ sessionId });
   
-  // Timer management
-  useEffect(() => {
-    if (currentQuestion && !interviewComplete) {
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setRemainingTime(prevTime => {
-          if (prevTime <= 1) {
-            // Time's up, stop recording if active
-            if (isRecording) {
-              stopRecording();
-            }
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
+  // Use audio recorder hook
+  const audioRecorder = useAudioRecorder({
+    onRecordingComplete: async (audioBlob) => {
+      await interview.submitAudioAnswer(audioBlob);
     }
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [currentQuestion, interviewComplete, isRecording]);
+  });
+  
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+  
+  // Handle text input change
+  const handleTextInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    interview.setTextInput(e.target.value);
+  };
+  
+  // Handle text submission
+  const handleSubmitText = () => {
+    if (interview.textInput.trim()) {
+      interview.submitTextAnswer(interview.textInput);
+    }
+  };
   
   // Request media device access
   useEffect(() => {
@@ -138,7 +83,7 @@ export default function InterviewSessionPage() {
       } catch (err) {
         console.error('Error accessing media devices:', err);
         if (micActive) {
-          setError('Could not access microphone. Please check browser permissions.');
+          interview.setError('Could not access microphone. Please check browser permissions.');
         }
       }
     }
@@ -151,253 +96,37 @@ export default function InterviewSessionPage() {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [micActive, cameraActive]);
+  }, [micActive, cameraActive, interview]);
   
-  // Format time for display
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-  
-  // Start audio recording
-  const startRecording = async () => {
-    try {
-      if (!streamRef.current) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-      }
-      
-      audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(streamRef.current);
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        await submitAudioAnswer(audioBlob);
-      };
-      
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
-      setIsRecording(true);
-      setTranscription('');
-      setAiResponse('');
-      
-    } catch (err) {
-      console.error('Error starting recording:', err);
-      setError('Failed to start recording. Check microphone permissions.');
-    }
-  };
-  
-  // Stop audio recording
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-  
-  // Submit audio answer to server
-  const submitAudioAnswer = async (audioBlob: Blob) => {
-    try {
-      setLoading(true);
-      
-      // Create form with audio data
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'answer.wav');
-      
-      // Send to server
-      const response = await fetch(`${API_URL}/process-answer/${sessionId}`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to process your answer');
-      }
-      
-      const data = await response.json();
-      
-      // Update UI with response
-      setTranscription(data.transcription);
-      setAiResponse(data.response);
-      
-      // Update progress
-      if (data.progress) {
-        setProgress(data.progress);
-      }
-      
-      // Reset timer
-      setRemainingTime(300);
-      
-      // Check if interview is complete
-      if (data.interview_complete) {
-        setInterviewComplete(true);
-        if (data.evaluation) {
-          setEvaluation({
-            report: data.evaluation,
-            scores: data.scores
-          });
-        }
-        
-        // Redirect to results page after 5 seconds
-        setTimeout(() => {
-          router.push(`/interview/${sessionId}/complete`);
-        }, 5000);
-      } else if (data.next_question) {
-        // Set next question with a small delay
-        setTimeout(() => {
-          setCurrentQuestion(data.next_question);
-          setCurrentTopic(data.next_topic || null);
-        }, 1000);
-      }
-      
-      setLoading(false);
-      
-    } catch (err: any) {
-      console.error('Error submitting answer:', err);
-      setError(err.message || 'Failed to submit your answer');
-      setLoading(false);
-    }
-  };
-  
-  // Submit text answer (for testing)
-  const submitTextAnswer = async (text: string) => {
-    try {
-      setLoading(true);
-      
-      const formData = new FormData();
-      formData.append('text', text);
-      
-      const response = await fetch(`${API_URL}/text-answer/${sessionId}`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to process your answer');
-      }
-      
-      const data = await response.json();
-      
-      // Update UI with response
-      setTranscription(data.transcription);
-      setAiResponse(data.response);
-      
-      // Update progress
-      if (data.progress) {
-        setProgress(data.progress);
-      }
-      
-      // Reset timer
-      setRemainingTime(300);
-      
-      // Check if interview is complete
-      if (data.interview_complete) {
-        setInterviewComplete(true);
-        if (data.evaluation) {
-          setEvaluation({
-            report: data.evaluation,
-            scores: data.scores
-          });
-        }
-        
-        // Redirect to results page after 5 seconds
-        setTimeout(() => {
-          router.push(`/interview/${sessionId}/complete`);
-        }, 5000);
-      } else if (data.next_question) {
-        // Set next question
-        setCurrentQuestion(data.next_question);
-        setCurrentTopic(data.next_topic || null);
-      }
-      
-      setLoading(false);
-      
-    } catch (err: any) {
-      console.error('Error submitting text answer:', err);
-      setError(err.message || 'Failed to submit your text answer');
-      setLoading(false);
-    }
-  };
-  
-  // Get next question
-  const fetchNextQuestion = async () => {
-    try {
-      const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: "Candidate", // this should already be set on the server
-          email: "candidate@example.com", // this should already be set on the server
-          position: "UX/UI Designer"
-        })
-      });
-      
-      if (!response.ok) {
-        // If starting fails, try to get current interview state
-        const fallbackResponse = await fetch(`${API_URL}/interview-info/${sessionId}`);
-        
-        if (!fallbackResponse.ok) {
-          throw new Error('Failed to get interview information');
-        }
-        
-        const data = await fallbackResponse.json();
-        
-        // Set fallback for first question
-        setCurrentQuestion("Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
-        setCurrentTopic('general');
-      } else {
-        // Interview successfully started
-        const data = await response.json();
-        setCurrentQuestion(data.first_question);
-        setCurrentTopic(data.current_topic);
-      }
-      
-      setRemainingTime(300); // 5 minutes for an answer
-      
-    } catch (err: any) {
-      console.error('Error fetching next question:', err);
-      setError(err.message || 'Failed to load the next question');
-    }
-  };
-  
-  // End interview early
-  const endInterviewEarly = async () => {
-    if (window.confirm("Are you sure you want to end the interview early? Your progress will be saved.")) {
-      try {
-        setLoading(true);
-        
-        const response = await fetch(`${API_URL}/end-interview/${sessionId}`, {
-          method: 'POST'
+  // Timer management
+  useEffect(() => {
+    if (interview.currentQuestion && !interview.interviewComplete) {
+      // Start timer
+      timerRef.current = setInterval(() => {
+        interview.setRemainingTime(prevTime => {
+          if (prevTime <= 1) {
+            // Time's up, stop recording if active
+            if (audioRecorder.isRecording) {
+              audioRecorder.stopRecording();
+            }
+            return 0;
+          }
+          return prevTime - 1;
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to end the interview');
-        }
-        
-        const data = await response.json();
-        
-        // Redirect to results page
-        router.push(`/interview/${sessionId}/complete`);
-        
-      } catch (err: any) {
-        console.error('Error ending interview:', err);
-        setError(err.message || 'Failed to end the interview');
-        setLoading(false);
-      }
+      }, 1000);
     }
-  };
+    
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [interview.currentQuestion, interview.interviewComplete, audioRecorder, interview]);
+  
+  // Load interview on mount
+  useEffect(() => {
+    interview.fetchInterviewInfo();
+  }, [interview]);
   
   // Media toggle handlers
   const toggleMicrophone = () => {
@@ -409,7 +138,7 @@ export default function InterviewSessionPage() {
   };
   
   // Show loading
-  if (loading && !currentQuestion) {
+  if (interview.loading && !interview.currentQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -421,7 +150,7 @@ export default function InterviewSessionPage() {
   }
   
   // Show error
-  if (error && !currentQuestion) {
+  if (interview.error && !interview.currentQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
         <div className="mb-6">
@@ -440,7 +169,7 @@ export default function InterviewSessionPage() {
           </CardHeader>
           <CardContent>
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{interview.error}</AlertDescription>
             </Alert>
             
             <div className="mt-4">
@@ -455,7 +184,7 @@ export default function InterviewSessionPage() {
   }
   
   // If interview is complete
-  if (interviewComplete) {
+  if (interview.interviewComplete) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
         <div className="mb-6">
@@ -510,8 +239,8 @@ export default function InterviewSessionPage() {
          <div className="flex items-center space-x-2">
            <div className="flex items-center text-sm text-gray-700 mr-2">
              <Clock className="h-4 w-4 mr-1 text-gray-500" />
-             <span className={remainingTime < 60 ? "text-red-600 font-medium" : ""}>
-               {formatTime(remainingTime)}
+             <span className={interview.remainingTime < 60 ? "text-red-600 font-medium" : ""}>
+               {formatTime(interview.remainingTime)}
              </span>
            </div>
            
@@ -519,7 +248,7 @@ export default function InterviewSessionPage() {
              variant="ghost"
              size="sm"
              className="text-gray-700 hover:text-red-600"
-             onClick={endInterviewEarly}
+             onClick={interview.endInterviewEarly}
            >
              <XCircle className="h-4 w-4 mr-1" />
              <span className="hidden sm:inline">End Interview</span>
@@ -532,8 +261,7 @@ export default function InterviewSessionPage() {
        {/* Left column - video and control */}
        <div className="lg:col-span-1">
          <Card className="mb-4">
-           <CardContent className="p-4">
-             {/* Video */}
+           <CardContent className="p-4">{/* Video */}
              <div className="relative bg-gray-900 aspect-video rounded-md mb-4 overflow-hidden">
                {cameraActive ? (
                  <video
@@ -550,7 +278,7 @@ export default function InterviewSessionPage() {
                )}
                
                {/* Recording indicator */}
-               {isRecording && (
+               {audioRecorder.isRecording && (
                  <div className="absolute top-2 right-2 flex items-center bg-red-600 text-white px-2 py-1 rounded-md text-xs animate-pulse">
                    <span className="h-2 w-2 bg-white rounded-full mr-1"></span>
                    Recording
@@ -607,29 +335,29 @@ export default function InterviewSessionPage() {
              <CardTitle className="text-lg">Interview Progress</CardTitle>
            </CardHeader>
            <CardContent className="space-y-4">
-             {progress ? (
+             {interview.progress ? (
                <>
                  <div className="space-y-1">
                    <div className="flex justify-between text-sm">
-                     <span>Questions: {progress.questions_asked}/{progress.max_questions}</span>
-                     <span>{Math.round((progress.questions_asked / progress.max_questions) * 100)}%</span>
+                     <span>Questions: {interview.progress.questions_asked}/{interview.progress.max_questions}</span>
+                     <span>{Math.round((interview.progress.questions_asked / interview.progress.max_questions) * 100)}%</span>
                    </div>
-                   <SimpleProgress value={(progress.questions_asked / progress.max_questions) * 100} />
+                   <SimpleProgress value={(interview.progress.questions_asked / interview.progress.max_questions) * 100} />
                  </div>
                  
                  <div className="space-y-1">
                    <div className="flex justify-between text-sm">
-                     <span>Time: {Math.round(progress.elapsed_minutes)}/{progress.max_duration_minutes} min</span>
-                     <span>{Math.round((progress.elapsed_minutes / progress.max_duration_minutes) * 100)}%</span>
+                     <span>Time: {Math.round(interview.progress.elapsed_minutes)}/{interview.progress.max_duration_minutes} min</span>
+                     <span>{Math.round((interview.progress.elapsed_minutes / interview.progress.max_duration_minutes) * 100)}%</span>
                    </div>
-                   <SimpleProgress value={(progress.elapsed_minutes / progress.max_duration_minutes) * 100} />
+                   <SimpleProgress value={(interview.progress.elapsed_minutes / interview.progress.max_duration_minutes) * 100} />
                  </div>
                  
-                 {currentTopic && (
+                 {interview.currentTopic && (
                    <div className="bg-blue-50 p-3 rounded-md">
                      <p className="text-xs text-gray-500 mb-1">Current Topic:</p>
                      <p className="text-sm font-medium capitalize">
-                       {currentTopic.replace('_', ' ')}
+                       {typeof interview.currentTopic === 'string' ? interview.currentTopic.replace('_', ' ') : ''}
                      </p>
                    </div>
                  )}
@@ -656,8 +384,8 @@ export default function InterviewSessionPage() {
              </CardTitle>
            </CardHeader>
            <CardContent>
-             {currentQuestion ? (
-               <div className="text-gray-800 py-1">{currentQuestion}</div>
+             {interview.currentQuestion ? (
+               <div className="text-gray-800 py-1">{interview.currentQuestion}</div>
              ) : (
                <div className="flex items-center justify-center h-16">
                  <Loader2 className="h-5 w-5 animate-spin" />
@@ -667,71 +395,25 @@ export default function InterviewSessionPage() {
          </Card>
          
          {/* Answer and recording */}
-         <Card>
-           <CardHeader className="pb-2">
-             <CardTitle className="text-lg flex items-center">
-               <span className="inline-block w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mr-2">
-                 A
-               </span>
-               Your Answer
-             </CardTitle>
-           </CardHeader>
-           <CardContent className="pb-2">
-             {isRecording ? (
-               <div className="flex flex-col items-center justify-center py-4">
-                 <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-2 relative">
-                   <div className="w-12 h-12 bg-red-500 rounded-full animate-pulse"></div>
-                   <div className="absolute inset-0 w-full h-full rounded-full border-4 border-red-500 opacity-75"></div>
-                 </div>
-                 <p className="text-gray-700 mb-1">Recording...</p>
-                 <p className="text-sm text-gray-500">
-                   Speak clearly into your microphone
-                 </p>
-               </div>
-             ) : transcription ? (
-               <div className="rounded-md bg-gray-50 p-3 text-gray-800">
-                 {transcription}
-               </div>
-             ) : (
-               <div className="text-center py-6">
-                 <p className="text-gray-500 mb-2">Press the button below to start recording your answer</p>
-                 <p className="text-xs text-gray-400">
-                   You have {formatTime(remainingTime)} to answer this question
-                 </p>
-               </div>
-             )}
-           </CardContent>
-           <CardFooter className="pt-0">
-             {isRecording ? (
-               <Button
-                 className="w-full"
-                 variant="destructive"
-                 onClick={stopRecording}
-               >
-                 <span className="flex items-center">
-                   <span className="h-2 w-2 bg-white rounded-full mr-2 animate-pulse"></span>
-                   Stop Recording
-                 </span>
-               </Button>
-             ) : (
-               <Button
-                 className="w-full"
-                 onClick={startRecording}
-                 disabled={!micActive || loading}
-               >
-                 {loading ? (
-                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                 ) : (
-                   <Mic className="h-4 w-4 mr-1" />
-                 )}
-                 {loading ? "Processing..." : "Start Recording"}
-               </Button>
-             )}
-           </CardFooter>
-         </Card>
+         <CandidateAnswerCard 
+           isRecording={audioRecorder.isRecording}
+           transcription={interview.transcription}
+           remainingTime={interview.remainingTime}
+           loading={interview.loading}
+           micActive={micActive}
+           useTextInput={interview.useTextInput}
+           textInput={interview.textInput}
+           recordingError={audioRecorder.recordingError}
+           onTextInputChange={handleTextInputChange}
+           onToggleInputMode={interview.toggleInputMode}
+           onStartRecording={audioRecorder.startRecording}
+           onStopRecording={audioRecorder.stopRecording}
+           onSubmitText={handleSubmitText}
+           formatTime={formatTime}
+         />
          
          {/* Interviewer response */}
-         {aiResponse && (
+         {interview.aiResponse && (
            <Card>
              <CardHeader className="pb-2">
                <CardTitle className="text-lg flex items-center">
@@ -743,16 +425,16 @@ export default function InterviewSessionPage() {
              </CardHeader>
              <CardContent>
                <div className="rounded-md bg-purple-50 p-3 text-gray-800">
-                 {aiResponse}
+                 {interview.aiResponse}
                </div>
              </CardContent>
            </Card>
          )}
          
          {/* Error message */}
-         {error && (
+         {interview.error && (
            <Alert variant="destructive">
-             <AlertDescription>{error}</AlertDescription>
+             <AlertDescription>{interview.error}</AlertDescription>
            </Alert>
          )}
        </div>
