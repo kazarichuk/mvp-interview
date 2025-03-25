@@ -39,8 +39,6 @@ next-env.d.ts
 # Frontend
 src/
 public/
-package.json
-package-lock.json
 tsconfig.json
 next.config.js
 postcss.config.js
