@@ -1,11 +1,17 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import SignupForm from '@/components/auth/SignupForm';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export const metadata: Metadata = {
-  title: 'Create Account - HireFlick',
+  title: 'Sign Up - HireFlick',
   description: 'Create your HireFlick account',
 };
 
 export default function SignupPage() {
-  return <SignupForm />;
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <SignupForm />
+    </Suspense>
+  );
 }

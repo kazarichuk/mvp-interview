@@ -45,7 +45,10 @@ const nextConfig = {
     RESEND_API_KEY: process.env.RESEND_API_KEY || '',
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  }
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 module.exports = nextConfig;

@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import LoginForm from '@/components/auth/LoginForm';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export const metadata: Metadata = {
   title: 'Log In - HireFlick',
@@ -7,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <LoginForm />
+    </Suspense>
+  );
 }
