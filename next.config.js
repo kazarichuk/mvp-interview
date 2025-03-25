@@ -2,7 +2,6 @@
 const nextConfig = {
   output: 'standalone',
   distDir: '.next',
-  dir: 'src',
   reactStrictMode: true,
   swcMinify: true,
   async redirects() {
