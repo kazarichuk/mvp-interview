@@ -114,6 +114,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // This line should never be reached, but TypeScript needs it
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: 'Failed to send email after all retries' 
+      }, 
+      { status: 500 }
+    )
+
   } catch (error: any) {
     console.error('Email Sending Error:', error)
     
