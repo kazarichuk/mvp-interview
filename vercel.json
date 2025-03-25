@@ -1,5 +1,13 @@
 {
-  "buildCommand": "npm install && cd app && npm install && npm run build",
-  "outputDirectory": "app/.next",
-  "installCommand": "npm install && cd app && npm install"
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ]
 } 
