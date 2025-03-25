@@ -14,6 +14,8 @@ import {
 } from 'firebase/auth';
 import { createUserProfile, updateLastLogin } from './firestore';
 
+export { auth };
+
 export const signIn = async (email: string, password: string) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);

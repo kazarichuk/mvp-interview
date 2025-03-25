@@ -1,10 +1,7 @@
-import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import '@/styles/tailwind.css';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'HireFlick',
@@ -21,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-background`}>
+      <body className="min-h-screen bg-background font-sans antialiased">
         <AuthProvider>
           {children}
           <SpeedInsights />
