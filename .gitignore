@@ -46,20 +46,6 @@ next.config.js
 postcss.config.js
 tailwind.config.js
 
-# Backend
-backend/__pycache__/
-backend/*.pyc
-backend/.pytest_cache/
-backend/.coverage
-backend/.env
-backend/venv/
-backend/.venv/
-backend/env/
-backend/.env.local
-backend/.env.development.local
-backend/.env.test.local
-backend/.env.production.local
-
 # Python
 __pycache__/
 *.py[cod]
