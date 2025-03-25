@@ -13,7 +13,7 @@ const ratelimit = new Ratelimit({
   prefix: 'ratelimit:email',
 })
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     // Rate limiting check
     const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1'
@@ -48,9 +48,9 @@ export async function POST(req: NextRequest) {
     if (!emailRegex.test(to)) {
       return NextResponse.json(
         { 
-          success: false, 
-          error: 'Invalid email format' 
-        }, 
+          success: false,
+          error: 'Invalid email format'
+        },
         { status: 400 }
       )
     }
