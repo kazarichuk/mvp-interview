@@ -9,5 +9,6 @@
       "@/styles/*": ["./src/styles/*"],
       "@/types/*": ["./src/types/*"]
     }
-  }
+  },
+  "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
 } 
