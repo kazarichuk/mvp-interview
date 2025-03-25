@@ -2,11 +2,15 @@
 
 Frontend application for the MVP Interview system built with Next.js.
 
+## Deployment Status
+
+[![Vercel Production Deployment](https://img.shields.io/badge/vercel-live-success)](https://hr-project.vercel.app)
+
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18.x or later
+- Node.js 20.x or later
 - npm or yarn
 
 ### Installation
@@ -63,9 +67,9 @@ yarn start
 
 ## Deployment
 
-This project is configured for deployment on Vercel. To deploy:
+This project is deployed on Vercel. To deploy:
 
-1. Push your changes to the main branch
+1. Push your changes to the `frontend` branch
 2. Vercel will automatically deploy your changes
 
 ## Environment Variables
