@@ -1,45 +1,95 @@
 # MVP Interview Project
 
-This repository contains both frontend and backend parts of the MVP Interview application.
+A modern Next.js application with TypeScript, Firebase, and Tailwind CSS.
 
-## Project Structure
+## Features
 
-- `frontend/` - Next.js frontend application deployed on Vercel
-- `backend/` - Backend application deployed on Render
+- Next.js 14 with App Router
+- TypeScript for type safety
+- Firebase integration
+- Tailwind CSS for styling
+- Radix UI components
+- Form handling with React Hook Form
+- Analytics with Vercel
+- Performance optimizations
 
-## Frontend
+## Getting Started
 
-The frontend is a Next.js application that provides the interview interface. It's deployed on Vercel.
+### Prerequisites
 
-### Setup
+- Node.js 18.17 or later
+- npm 9.0 or later
+
+### Installation
+
+1. Clone the repository:
 ```bash
-cd frontend
+git clone https://github.com/yourusername/mvp-interview.git
+cd mvp-interview
+```
+
+2. Install dependencies:
+```bash
 npm install
+```
+
+3. Create a `.env` file in the root directory and add your environment variables:
+```env
+# Firebase
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# Other configurations
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+4. Run the development server:
+```bash
 npm run dev
 ```
 
-## Backend
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-The backend is a Python application that handles interview logic and AI processing. It's deployed on Render.
+## Available Scripts
 
-### Setup
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python run.py
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+
+## Project Structure
+
+```
+src/
+├── app/              # Next.js app router pages
+├── components/       # React components
+├── lib/             # Utility functions and configurations
+├── styles/          # Global styles
+└── types/           # TypeScript type definitions
 ```
 
-## Development
+## Technologies Used
 
-Each project can be developed independently. The frontend and backend communicate through API endpoints.
+- [Next.js](https://nextjs.org/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Firebase](https://firebase.google.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [React Hook Form](https://react-hook-form.com/)
+- [Vercel Analytics](https://vercel.com/analytics)
 
-## Deployment
+## Contributing
 
-- Frontend: Deployed on Vercel
-- Backend: Deployed on Render
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Environment Variables
+## License
 
-Each project has its own `.env` file with specific configuration. Make sure to set up the appropriate environment variables for both projects. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
