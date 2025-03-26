@@ -87,8 +87,10 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -151,6 +153,10 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         // Send to server
         const response = await fetch(`${API_URL}/process-answer/${sessionId}`, {
           method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
           body: formData,
           signal: controller.signal,
         });
@@ -202,6 +208,10 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       
       const response = await fetch(`${API_URL}/text-answer/${sessionId}`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
         body: formData
       });
       
@@ -273,7 +283,11 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setLoading(true);
         
         const response = await fetch(`${API_URL}/end-interview/${sessionId}`, {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
         });
         
         if (!response.ok) {

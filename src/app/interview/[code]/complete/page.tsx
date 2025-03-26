@@ -26,7 +26,12 @@ export default function InterviewCompletePage() {
       try {
         setLoading(true);
         
-        const response = await fetch(`${API_URL}/interview-results/${sessionId}`);
+        const response = await fetch(`${API_URL}/interview-results/${sessionId}`, {
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           // Если интервью не завершено, перенаправляем на основную страницу

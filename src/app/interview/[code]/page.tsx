@@ -32,7 +32,12 @@ export default function InterviewPage() {
         setLoading(true);
         
         // Request interview information from Python API
-        const response = await fetch(`${API_URL}/interview-info/${inviteCode}`);
+        const response = await fetch(`${API_URL}/interview-info/${inviteCode}`, {
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -69,7 +74,9 @@ export default function InterviewPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           name,
           email,
