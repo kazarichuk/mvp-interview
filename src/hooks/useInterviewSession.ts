@@ -90,34 +90,24 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify({
+          name: '', // Имя будет добавлено позже
+          email: '', // Email будет добавлен позже
+          position: 'UX/UI Designer'
+        })
       });
       
       if (!response.ok) {
-        console.log('Failed to start interview, trying fallback...');
-        // If starting fails, try to get current interview state
-        const fallbackResponse = await fetch(`${API_URL}/interview-info/${sessionId}`);
-        
-        if (!fallbackResponse.ok) {
-          throw new Error('Failed to get interview information');
-        }
-        
-        const fallbackData = await fallbackResponse.json();
-        console.log('Using fallback question');
-        
-        if (fallbackData.status === 'active') {
-          setCurrentQuestion(fallbackData.current_question || "Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
-          setCurrentTopic(fallbackData.current_topic || 'general');
-          setIsInitialized(true);
-        }
-      } else {
-        // Interview successfully started
-        const data = await response.json();
-        console.log('Interview started, first question received:', data);
-        setCurrentQuestion(data.first_question);
-        setCurrentTopic(data.current_topic);
-        setIsInitialized(true);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to start interview');
       }
+      
+      const data = await response.json();
+      console.log('Interview started, first question received:', data);
+      setCurrentQuestion(data.first_question);
+      setCurrentTopic(data.current_topic);
+      setIsInitialized(true);
       
       setRemainingTime(300); // 5 minutes for an answer
       
