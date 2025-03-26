@@ -62,21 +62,7 @@ export const signInWithGoogle = async () => {
       };
     }
 
-    // Проверяем на личные домены
-    const isPersonalEmail = userEmail.match(
-      /@(gmail|yahoo|hotmail|outlook|aol|icloud|mail\.ru|yandex|proton|zoho)\./i
-    );
-
-    // Если личный email - сразу выходим без создания профиля
-    if (isPersonalEmail) {
-      await signOut(auth);
-      return { 
-        user: null, 
-        error: 'Personal email addresses are not allowed. Please use your work email to sign in.' 
-      };
-    }
-
-    // Только для рабочих email создаем профиль
+    // Создаем профиль для любого email
     const user = userCredential.user;
 
     try {
