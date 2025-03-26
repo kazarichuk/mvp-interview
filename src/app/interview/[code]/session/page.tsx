@@ -34,7 +34,26 @@ export default function InterviewSessionPage() {
   // Use audio recorder hook
   const audioRecorder = useAudioRecorder({
     onRecordingComplete: async (audioBlob) => {
-      await interview.submitAudioAnswer(audioBlob);
+      // Конвертируем аудио в текст
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+      
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_INTERVIEW_API_URL}/transcribe-audio`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to transcribe audio');
+        }
+        
+        const { text } = await response.json();
+        await interview.submitAnswer(text);
+      } catch (err) {
+        console.error('Error transcribing audio:', err);
+        interview.setError('Failed to process audio. Please try using text input.');
+      }
     }
   });
   
@@ -53,7 +72,7 @@ export default function InterviewSessionPage() {
   // Handle text submission
   const handleSubmitText = () => {
     if (interview.textInput.trim()) {
-      interview.submitTextAnswer(interview.textInput);
+      interview.submitAnswer(interview.textInput);
     }
   };
   
