@@ -69,6 +69,17 @@ export default function InterviewPage() {
     try {
       setLoading(true);
       
+      // Проверяем, что у нас есть все необходимые данные
+      if (!name || !email) {
+        throw new Error('Please fill in all required fields');
+      }
+      
+      console.log('Starting interview with data:', {
+        name,
+        email,
+        position: interviewInfo?.position || 'UX/UI Designer'
+      });
+      
       // Send candidate information to Python API
       const response = await fetch(`${API_URL}/start-interview/${inviteCode}`, {
         method: 'POST',
@@ -91,8 +102,9 @@ export default function InterviewPage() {
       
       // Get data to start the interview
       const data = await response.json();
+      console.log('Interview started successfully:', data);
       
-      // Navigate to the interview page
+      // Используем window.location для полного перезагрузки страницы
       window.location.href = `/interview/${inviteCode}/session`;
       
     } catch (err: any) {

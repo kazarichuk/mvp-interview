@@ -45,7 +45,8 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       // Check interview status
       if (data.status === 'pending') {
         console.log('Interview pending, redirecting to start page');
-        router.replace(`/interview/${sessionId}`);
+        // Используем window.location для полного перезагрузки страницы
+        window.location.href = `/interview/${sessionId}`;
         return;
       }
       
