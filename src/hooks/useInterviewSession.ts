@@ -85,6 +85,16 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
 
     try {
       console.log('Fetching next question...');
+      
+      // Получаем данные кандидата из localStorage
+      const candidateData = localStorage.getItem('candidateData');
+      if (!candidateData) {
+        throw new Error('Candidate data not found. Please start the interview again.');
+      }
+      
+      const { name, email, position } = JSON.parse(candidateData);
+      console.log('Using candidate data:', { name, email, position });
+      
       const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
         method: 'POST',
         headers: {
@@ -93,9 +103,9 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         },
         credentials: 'include',
         body: JSON.stringify({
-          name: '', // Имя будет добавлено позже
-          email: '', // Email будет добавлен позже
-          position: 'UX/UI Designer'
+          name,
+          email,
+          position
         })
       });
       
@@ -106,6 +116,11 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       
       const data = await response.json();
       console.log('Interview started, first question received:', data);
+      
+      if (data.status !== 'active') {
+        throw new Error('Interview failed to start properly');
+      }
+      
       setCurrentQuestion(data.first_question);
       setCurrentTopic(data.current_topic);
       setIsInitialized(true);

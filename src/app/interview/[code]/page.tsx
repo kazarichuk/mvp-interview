@@ -77,7 +77,8 @@ export default function InterviewPage() {
       console.log('Starting interview with data:', {
         name,
         email,
-        position: interviewInfo?.position || 'UX/UI Designer'
+        position: interviewInfo?.position || 'UX/UI Designer',
+        inviteCode
       });
       
       // Send candidate information to Python API
@@ -95,8 +96,11 @@ export default function InterviewPage() {
         }),
       });
       
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Error response:', errorData);
         throw new Error(errorData.detail || 'Failed to start the interview');
       }
       
@@ -104,8 +108,20 @@ export default function InterviewPage() {
       const data = await response.json();
       console.log('Interview started successfully:', data);
       
-      // Используем window.location для полного перезагрузки страницы
-      window.location.href = `/interview/${inviteCode}/session`;
+      // Проверяем статус перед редиректом
+      if (data.status === 'active') {
+        console.log('Interview is active, saving candidate data and redirecting...');
+        // Сохраняем данные кандидата
+        localStorage.setItem('candidateData', JSON.stringify({
+          name,
+          email,
+          position: interviewInfo?.position || 'UX/UI Designer'
+        }));
+        window.location.href = `/interview/${inviteCode}/session`;
+      } else {
+        console.log('Interview status is not active:', data.status);
+        throw new Error('Interview failed to start properly');
+      }
       
     } catch (err: any) {
       console.error('Error starting interview:', err);
