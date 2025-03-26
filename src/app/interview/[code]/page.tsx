@@ -68,10 +68,26 @@ export default function InterviewPage() {
     
     try {
       setLoading(true);
+      setError(null);
       
-      // Проверяем, что у нас есть все необходимые данные
-      if (!name || !email) {
-        throw new Error('Please fill in all required fields');
+      // Проверяем подключение к интернету
+      if (!navigator.onLine) {
+        throw new Error('No internet connection. Please check your connection and try again.');
+      }
+      
+      // Валидация данных
+      if (!name.trim()) {
+        throw new Error('Please enter your name');
+      }
+      
+      if (!email.trim()) {
+        throw new Error('Please enter your email');
+      }
+      
+      // Валидация email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Please enter a valid email address');
       }
       
       console.log('Starting interview with data:', {
@@ -122,7 +138,8 @@ export default function InterviewPage() {
         localStorage.setItem('candidateData', JSON.stringify({
           name,
           email,
-          position: interviewInfo?.position || 'UX/UI Designer'
+          position: interviewInfo?.position || 'UX/UI Designer',
+          timestamp: Date.now()
         }));
         
         // Добавляем небольшую задержку перед редиректом
@@ -137,6 +154,16 @@ export default function InterviewPage() {
     } catch (err: any) {
       console.error('Error starting interview:', err);
       setError(err.message || 'Failed to start the interview');
+      
+      // Показываем уведомление об ошибке
+      if (typeof window !== 'undefined') {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+        notification.textContent = err.message || 'Failed to start the interview';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+      }
+    } finally {
       setLoading(false);
     }
   };
