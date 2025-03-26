@@ -45,7 +45,6 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       // Check interview status
       if (data.status === 'pending') {
         console.log('Interview pending, redirecting to start page');
-        // Используем window.location для полного перезагрузки страницы
         window.location.href = `/interview/${sessionId}`;
         return;
       }
@@ -61,9 +60,15 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setProgress(data.progress);
       }
 
-      // If interview is active but not initialized, get current question
-      if (data.status === 'active' && !isInitialized) {
-        setCurrentQuestion(data.current_question || "Tell us about your experience in UX/UI design. What projects have you worked on and what methodologies do you use?");
+      // If interview is active or resumed, get current question
+      if ((data.status === 'active' || data.status === 'resumed') && !isInitialized) {
+        const question = data.current_question || data.first_question;
+        if (!question) {
+          console.error('No question available in response:', data);
+          throw new Error('No question available for the interview');
+        }
+        console.log('Setting current question:', question);
+        setCurrentQuestion(question);
         setCurrentTopic(data.current_topic || 'general');
         setIsInitialized(true);
       }
@@ -119,10 +124,17 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       
       // Проверяем статус интервью
       if (data.status === 'active' || data.status === 'resumed') {
-        setCurrentQuestion(data.first_question || data.current_question);
-        setCurrentTopic(data.current_topic);
+        const question = data.first_question || data.current_question;
+        if (!question) {
+          console.error('No question available in response:', data);
+          throw new Error('No question available for the interview');
+        }
+        console.log('Setting current question:', question);
+        setCurrentQuestion(question);
+        setCurrentTopic(data.current_topic || 'general');
         setIsInitialized(true);
       } else {
+        console.error('Invalid interview status:', data.status);
         throw new Error('Interview failed to start properly');
       }
       

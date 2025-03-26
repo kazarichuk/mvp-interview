@@ -111,15 +111,26 @@ export default function InterviewPage() {
       // Проверяем статус перед редиректом
       if (data.status === 'active' || data.status === 'resumed') {
         console.log('Interview is active/resumed, saving candidate data and redirecting...');
+        
+        // Проверяем наличие вопроса
+        if (!data.current_question && !data.first_question) {
+          console.error('No question available in response:', data);
+          throw new Error('No question available for the interview');
+        }
+        
         // Сохраняем данные кандидата
         localStorage.setItem('candidateData', JSON.stringify({
           name,
           email,
           position: interviewInfo?.position || 'UX/UI Designer'
         }));
-        window.location.href = `/interview/${inviteCode}/session`;
+        
+        // Добавляем небольшую задержку перед редиректом
+        setTimeout(() => {
+          window.location.href = `/interview/${inviteCode}/session`;
+        }, 100);
       } else {
-        console.log('Interview status is not active/resumed:', data.status);
+        console.error('Invalid interview status:', data.status);
         throw new Error('Interview failed to start properly');
       }
       
