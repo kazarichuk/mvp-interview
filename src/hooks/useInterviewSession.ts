@@ -117,13 +117,14 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       const data = await response.json();
       console.log('Interview started, first question received:', data);
       
-      if (data.status !== 'active') {
+      // Проверяем статус интервью
+      if (data.status === 'active' || data.status === 'resumed') {
+        setCurrentQuestion(data.first_question || data.current_question);
+        setCurrentTopic(data.current_topic);
+        setIsInitialized(true);
+      } else {
         throw new Error('Interview failed to start properly');
       }
-      
-      setCurrentQuestion(data.first_question);
-      setCurrentTopic(data.current_topic);
-      setIsInitialized(true);
       
       setRemainingTime(300); // 5 minutes for an answer
       

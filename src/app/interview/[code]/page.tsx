@@ -109,8 +109,8 @@ export default function InterviewPage() {
       console.log('Interview started successfully:', data);
       
       // Проверяем статус перед редиректом
-      if (data.status === 'active') {
-        console.log('Interview is active, saving candidate data and redirecting...');
+      if (data.status === 'active' || data.status === 'resumed') {
+        console.log('Interview is active/resumed, saving candidate data and redirecting...');
         // Сохраняем данные кандидата
         localStorage.setItem('candidateData', JSON.stringify({
           name,
@@ -119,7 +119,7 @@ export default function InterviewPage() {
         }));
         window.location.href = `/interview/${inviteCode}/session`;
       } else {
-        console.log('Interview status is not active:', data.status);
+        console.log('Interview status is not active/resumed:', data.status);
         throw new Error('Interview failed to start properly');
       }
       
