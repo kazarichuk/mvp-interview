@@ -124,14 +124,20 @@ export default function InterviewPage() {
       const data = await response.json();
       console.log('Interview started successfully:', data);
       
+      // Проверяем статус сервера
+      if (data.status === 'error') {
+        throw new Error(data.message || 'Server error occurred');
+      }
+      
       // Проверяем статус перед редиректом
       if (data.status === 'active' || data.status === 'resumed') {
         console.log('Interview is active/resumed, saving candidate data and redirecting...');
         
         // Проверяем наличие вопроса
-        if (!data.current_question && !data.first_question) {
-          console.error('No question available in response:', data);
-          throw new Error('No question available for the interview');
+        const question = data.current_question || data.first_question;
+        if (!question || question.trim() === '') {
+          console.error('No valid question in response:', data);
+          throw new Error('Interview question is missing. Please try again or contact support.');
         }
         
         // Сохраняем данные кандидата

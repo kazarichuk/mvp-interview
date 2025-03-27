@@ -60,17 +60,12 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       const data = await response.json();
       console.log('Interview info received:', data);
       
-      // Сохраняем состояние
-      localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
-        timestamp: Date.now(),
-        data: {
-          current_question: data.current_question || data.first_question,
-          current_topic: data.current_topic,
-          progress: data.progress
-        }
-      }));
+      // Проверяем статус сервера
+      if (data.status === 'error') {
+        throw new Error(data.message || 'Server error occurred');
+      }
       
-      // Check interview status
+      // Проверяем статус интервью
       if (data.status === 'pending') {
         console.log('Interview pending, redirecting to start page');
         window.location.href = `/interview/${sessionId}`;
@@ -83,6 +78,13 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         return;
       }
       
+      // Проверяем наличие вопроса
+      const question = data.current_question || data.first_question;
+      if (!question || question.trim() === '') {
+        console.error('No valid question in response:', data);
+        throw new Error('Interview question is missing. Please try again or contact support.');
+      }
+      
       // Update progress
       if (data.progress) {
         setProgress(data.progress);
@@ -90,15 +92,20 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
 
       // If interview is active or resumed, get current question
       if ((data.status === 'active' || data.status === 'resumed') && !isInitialized) {
-        const question = data.current_question || data.first_question;
-        if (!question) {
-          console.error('No question available in response:', data);
-          throw new Error('No question available for the interview');
-        }
         console.log('Setting current question:', question);
         setCurrentQuestion(question);
         setCurrentTopic(data.current_topic || 'general');
         setIsInitialized(true);
+        
+        // Сохраняем состояние
+        localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
+          timestamp: Date.now(),
+          data: {
+            current_question: question,
+            current_topic: data.current_topic || 'general',
+            progress: data.progress
+          }
+        }));
       }
       
       setLoading(false);
@@ -127,6 +134,8 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
 
     try {
       console.log('Fetching next question...');
+      setLoading(true);
+      setError(null);
       
       // Получаем данные кандидата из localStorage
       const candidateData = localStorage.getItem('candidateData');
@@ -159,27 +168,54 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       const data = await response.json();
       console.log('Interview started, first question received:', data);
       
+      // Проверяем статус сервера
+      if (data.status === 'error') {
+        throw new Error(data.message || 'Server error occurred');
+      }
+      
       // Проверяем статус интервью
       if (data.status === 'active' || data.status === 'resumed') {
         const question = data.first_question || data.current_question;
-        if (!question) {
-          console.error('No question available in response:', data);
-          throw new Error('No question available for the interview');
+        if (!question || question.trim() === '') {
+          console.error('No valid question in response:', data);
+          throw new Error('Interview question is missing. Please try again or contact support.');
         }
+        
         console.log('Setting current question:', question);
         setCurrentQuestion(question);
         setCurrentTopic(data.current_topic || 'general');
         setIsInitialized(true);
+        
+        // Сохраняем состояние
+        localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
+          timestamp: Date.now(),
+          data: {
+            current_question: question,
+            current_topic: data.current_topic || 'general',
+            progress: data.progress
+          }
+        }));
       } else {
         console.error('Invalid interview status:', data.status);
         throw new Error('Interview failed to start properly');
       }
       
-      setRemainingTime(300); // 5 minutes for an answer
+      setRemainingTime(300); // Reset timer for next question
       
     } catch (err: any) {
       console.error('Error fetching next question:', err);
       setError(err.message || 'Failed to load the next question');
+      
+      // Показываем уведомление об ошибке
+      if (typeof window !== 'undefined') {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
+        notification.textContent = err.message || 'Failed to load the next question';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+      }
+    } finally {
+      setLoading(false);
     }
   }, [sessionId, isInitialized]);
   
