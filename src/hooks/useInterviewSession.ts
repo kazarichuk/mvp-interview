@@ -82,43 +82,6 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       const question = data.current_question || data.first_question;
       if (!question || question.trim() === '') {
         console.error('No valid question in response:', data);
-        // Пробуем получить вопрос из vLLM API
-        try {
-          const vllmResponse = await fetch(`${process.env.NEXT_PUBLIC_VLLM_API_URL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: process.env.NEXT_PUBLIC_MODEL_NAME,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an AI interviewer. Generate a relevant interview question for a UX/UI designer."
-                }
-              ],
-              max_tokens: parseInt(process.env.NEXT_PUBLIC_MAX_TOKENS || '1000')
-            })
-          });
-          
-          if (!vllmResponse.ok) {
-            throw new Error('Failed to get question from vLLM API');
-          }
-          
-          const vllmData = await vllmResponse.json();
-          const generatedQuestion = vllmData.choices[0].message.content;
-          
-          if (generatedQuestion && generatedQuestion.trim()) {
-            console.log('Using generated question:', generatedQuestion);
-            setCurrentQuestion(generatedQuestion);
-            setCurrentTopic('general');
-            setIsInitialized(true);
-            setLoading(false);
-            return;
-          }
-        } catch (vllmErr) {
-          console.error('Error getting question from vLLM:', vllmErr);
-        }
         throw new Error('Interview question is missing. Please try again or contact support.');
       }
       
