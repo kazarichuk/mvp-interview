@@ -2,24 +2,22 @@
 import { useState, useRef, useCallback } from 'react';
 
 interface UseAudioRecorderProps {
-  onRecordingComplete: (blob: Blob) => Promise<void>;
+  onRecordingComplete?: (audioBlob: Blob) => void;
 }
 
 interface UseAudioRecorderReturn {
   isRecording: boolean;
   startRecording: () => Promise<void>;
-  stopRecording: () => void;
+  stopRecording: () => Promise<Blob>;
   recordingError: string | null;
 }
 
-export default function useAudioRecorder({
-  onRecordingComplete
-}: UseAudioRecorderProps): UseAudioRecorderReturn {
+export default function useAudioRecorder({ onRecordingComplete }: UseAudioRecorderProps = {}): UseAudioRecorderReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   
   // Start recording
@@ -37,78 +35,73 @@ export default function useAudioRecorder({
       }
       
       // Clear previous chunks
-      audioChunksRef.current = [];
-      
-      // Determine supported audio formats
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4',
-        'audio/mpeg'
-      ];
-      
-      let options = {};
-      let selectedType = '';
-      
-      // Find first supported format
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          options = { mimeType: type };
-          selectedType = type;
-          console.log(`Using audio format: ${type}`);
-          break;
-        }
-      }
+      chunksRef.current = [];
       
       // Create and configure media recorder
-      const mediaRecorder = new MediaRecorder(streamRef.current, options);
+      const mediaRecorder = new MediaRecorder(streamRef.current);
+      
+      mediaRecorderRef.current = mediaRecorder;
+      streamRef.current = streamRef.current;
       
       mediaRecorder.ondataavailable = (event) => {
         console.log(`Data available event, size: ${event.data.size} bytes`);
         if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+          chunksRef.current.push(event.data);
         }
       };
       
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.onstop = () => {
         try {
-          // Get mime type from recorder or use fallback
-          const mimeType = mediaRecorder.mimeType || selectedType || 'audio/webm';
-          console.log(`Recording stopped, creating blob with type: ${mimeType}`);
+          console.log("Recording stopped, creating blob...");
           
           // Create audio blob with correct type
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
           console.log(`Audio blob created, size: ${audioBlob.size} bytes`);
           
           // Pass recording to callback
-          await onRecordingComplete(audioBlob);
+          if (onRecordingComplete) {
+            onRecordingComplete(audioBlob);
+          }
         } catch (error) {
           console.error('Error processing recording:', error);
           setRecordingError('Error processing recording. Please try again.');
         }
       };
       
-      mediaRecorderRef.current = mediaRecorder;
-      
-      // Start recording in 1-second chunks for better reliability
-      mediaRecorder.start(1000);
+      // Start recording
+      mediaRecorder.start();
       console.log("Recording started");
       setIsRecording(true);
     } catch (error) {
       console.error('Error starting recording:', error);
       setRecordingError(`Failed to start recording: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   }, [onRecordingComplete]);
   
   // Stop recording
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      console.log("Stopping recording...");
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  }, [isRecording]);
+  const stopRecording = useCallback(async (): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      if (!mediaRecorderRef.current || !streamRef.current) {
+        reject(new Error('No active recording'));
+        return;
+      }
+
+      try {
+        console.log("Stopping recording...");
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          resolve(audioBlob);
+        };
+
+        mediaRecorderRef.current.stop();
+        streamRef.current.getTracks().forEach(track => track.stop());
+        setIsRecording(false);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }, []);
   
   return {
     isRecording,

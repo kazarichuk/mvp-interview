@@ -1,8 +1,9 @@
 // src/components/interview/CandidateAnswerCard.tsx
-import React from 'react';
+import React, { ChangeEvent } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, Loader2 } from 'lucide-react';
+import { Textarea } from "@/components/ui/textarea";
+import { Mic, MicOff, Type, Loader2 } from "lucide-react";
 
 interface CandidateAnswerCardProps {
   isRecording: boolean;
@@ -10,15 +11,12 @@ interface CandidateAnswerCardProps {
   remainingTime: number;
   loading: boolean;
   micActive: boolean;
-  useTextInput: boolean;
-  textInput: string;
-  recordingError: string | null;
-  onTextInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onToggleInputMode: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onTextInputChange: (text: string) => void;
+  useTextInput: boolean;
+  onToggleInputMode: () => void;
   onSubmitText: () => void;
-  formatTime: (seconds: number) => string;
 }
 
 export default function CandidateAnswerCard({
@@ -27,129 +25,85 @@ export default function CandidateAnswerCard({
   remainingTime,
   loading,
   micActive,
-  useTextInput,
-  textInput,
-  recordingError,
-  onTextInputChange,
-  onToggleInputMode,
   onStartRecording,
   onStopRecording,
-  onSubmitText,
-  formatTime
+  onTextInputChange,
+  useTextInput,
+  onToggleInputMode,
+  onSubmitText
 }: CandidateAnswerCardProps) {
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    onTextInputChange(e.target.value);
+  };
+
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center">
-          <span className="inline-block w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs mr-2">
-            A
-          </span>
-          Your Answer
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="pb-2">
-        {isRecording ? (
-          // Recording UI
-          <div className="flex flex-col items-center justify-center py-4">
-            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-2 relative">
-              <div className="w-12 h-12 bg-red-500 rounded-full animate-pulse"></div>
-              <div className="absolute inset-0 w-full h-full rounded-full border-4 border-red-500 opacity-75"></div>
-            </div>
-            <p className="text-gray-700 mb-1">Recording...</p>
-            <p className="text-sm text-gray-500">
-              Speak clearly into your microphone
-            </p>
-          </div>
-        ) : useTextInput ? (
-          // Text input UI
-          <div className="space-y-3">
-            <textarea
-              className="w-full min-h-24 p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Type your answer here..."
-              value={textInput}
-              onChange={onTextInputChange}
-            />
-          </div>
-        ) : transcription ? (
-          // Transcription UI
-          <div className="rounded-md bg-gray-50 p-3 text-gray-800">
-            {transcription}
-          </div>
-        ) : (
-          // Initial state
-          <div className="text-center py-6">
-            <p className="text-gray-500 mb-2">Press the button below to start recording your answer</p>
-            <p className="text-xs text-gray-400">
-              You have {formatTime(remainingTime)} to answer this question
-            </p>
-            <button 
-              className="text-blue-600 hover:text-blue-800 text-sm mt-4 underline"
-              onClick={onToggleInputMode}
-            >
-              Having trouble with audio? Switch to text input
-            </button>
-            
-            {recordingError && (
-              <div className="mt-4 p-2 bg-red-50 text-red-700 text-sm rounded-md">
-                {recordingError}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-      
-      <CardFooter className="pt-0">
-        {isRecording ? (
-          // Stop recording button
-          <Button
-            className="w-full"
-            variant="destructive"
-            onClick={onStopRecording}
-          >
-            <span className="flex items-center">
-              <span className="h-2 w-2 bg-white rounded-full mr-2 animate-pulse"></span>
-              Stop Recording
-            </span>
-          </Button>
-        ) : useTextInput ? (
-          // Text input controls
-          <div className="flex w-full space-x-2">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Your Answer</CardTitle>
+          <div className="flex items-center space-x-2">
             <Button
               variant="outline"
+              size="icon"
               onClick={onToggleInputMode}
-              className="flex-1"
+              className={useTextInput ? "bg-primary text-primary-foreground" : ""}
             >
-              Switch to Audio
+              <Type className="h-4 w-4" />
             </Button>
             <Button
-              className="flex-1"
+              variant="outline"
+              size="icon"
+              onClick={isRecording ? onStopRecording : onStartRecording}
+              disabled={loading}
+              className={micActive ? "bg-primary text-primary-foreground" : ""}
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {useTextInput ? (
+            <Textarea
+              value={transcription}
+              onChange={handleTextChange}
+              placeholder="Type your answer here..."
+              className="min-h-[200px]"
+              disabled={loading}
+            />
+          ) : (
+            <div className="min-h-[200px] p-4 bg-muted rounded-md">
+              {transcription || "Your transcribed answer will appear here..."}
+            </div>
+          )}
+          
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Time remaining: {formatTime(remainingTime)}
+            </div>
+            <Button
               onClick={onSubmitText}
-              disabled={!textInput.trim() || loading}
+              disabled={loading || !transcription.trim()}
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
               ) : (
-                <span>Submit Answer</span>
+                'Submit Answer'
               )}
             </Button>
           </div>
-        ) : (
-          // Start recording button
-          <Button
-            className="w-full"
-            onClick={onStartRecording}
-            disabled={!micActive || loading}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Mic className="h-4 w-4 mr-1" />
-            )}
-            {loading ? "Processing..." : "Start Recording"}
-          </Button>
-        )}
-      </CardFooter>
+        </div>
+      </CardContent>
     </Card>
   );
 }
