@@ -17,21 +17,68 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string | null>(null);
-  const [transcription, setTranscription] = useState<string>('');
-  const [aiResponse, setAiResponse] = useState<string>('');
+  const [feedback, setFeedback] = useState<string>('');
+  const [score, setScore] = useState<number | null>(null);
   const [remainingTime, setRemainingTime] = useState(300); // 5 minutes in seconds
   const [progress, setProgress] = useState<any>(null);
   const [interviewComplete, setInterviewComplete] = useState(false);
-  const [evaluation, setEvaluation] = useState<any>(null);
   const [useTextInput, setUseTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
   
+  // Fetch with timeout
+  const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 30000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      throw error;
+    }
+  };
+
+  // Check API health
+  const checkApiHealth = useCallback(async () => {
+    try {
+      const response = await fetchWithTimeout(`${API_URL}/api/health`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('API is not healthy');
+      }
+      const data = await response.json();
+      if (data.status !== 'healthy' || data.vllm_api !== 'available') {
+        throw new Error('API services are not available');
+      }
+      return true;
+    } catch (err) {
+      console.error('API health check failed:', err);
+      return false;
+    }
+  }, []);
+
   // Fetch initial interview info
   const fetchInterviewInfo = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check API health first
+      const isHealthy = await checkApiHealth();
+      if (!isHealthy) {
+        throw new Error('Interview service is temporarily unavailable. Please try again later.');
+      }
+      
       console.log(`Fetching interview info for session ${sessionId}...`);
       
       // Проверяем сохраненное состояние
@@ -50,7 +97,12 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         }
       }
 
-      const response = await fetch(`${API_URL}/interview-info/${sessionId}`);
+      const response = await fetchWithTimeout(`${API_URL}/api/interview-info/${sessionId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -59,11 +111,6 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       
       const data = await response.json();
       console.log('Interview info received:', data);
-      
-      // Проверяем статус сервера
-      if (data.status === 'error') {
-        throw new Error(data.message || 'Server error occurred');
-      }
       
       // Проверяем статус интервью
       if (data.status === 'pending') {
@@ -79,7 +126,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       }
       
       // Проверяем наличие вопроса
-      const question = data.current_question || data.first_question;
+      const question = data.question;
       if (!question || question.trim() === '') {
         console.error('No valid question in response:', data);
         throw new Error('Interview question is missing. Please try again or contact support.');
@@ -94,7 +141,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       if ((data.status === 'active' || data.status === 'resumed') && !isInitialized) {
         console.log('Setting current question:', question);
         setCurrentQuestion(question);
-        setCurrentTopic(data.current_topic || 'general');
+        setCurrentTopic(data.topic || 'general');
         setIsInitialized(true);
         
         // Сохраняем состояние
@@ -102,7 +149,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
           timestamp: Date.now(),
           data: {
             current_question: question,
-            current_topic: data.current_topic || 'general',
+            current_topic: data.topic || 'general',
             progress: data.progress
           }
         }));
@@ -123,41 +170,38 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setTimeout(() => notification.remove(), 5000);
       }
     }
-  }, [sessionId, router, isInitialized]);
+  }, [sessionId, router, isInitialized, checkApiHealth]);
   
-  // Fetch next question or start interview
-  const fetchNextQuestion = useCallback(async () => {
-    if (isInitialized) {
-      console.log('Interview already initialized, skipping fetchNextQuestion');
-      return;
-    }
-
+  // Start interview
+  const startInterview = useCallback(async (candidateData: { name: string; email: string; position: string }) => {
     try {
-      console.log('Fetching next question...');
+      console.log('Starting interview...');
       setLoading(true);
       setError(null);
       
-      // Получаем данные кандидата из localStorage
-      const candidateData = localStorage.getItem('candidateData');
-      if (!candidateData) {
-        throw new Error('Candidate data not found. Please start the interview again.');
+      // Validate candidate data
+      const errors = [];
+      if (!candidateData.name || candidateData.name.length < 2) {
+        errors.push('Name must be at least 2 characters long');
+      }
+      if (!candidateData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateData.email)) {
+        errors.push('Invalid email format');
+      }
+      if (!candidateData.position) {
+        errors.push('Position is required');
       }
       
-      const { name, email, position } = JSON.parse(candidateData);
-      console.log('Using candidate data:', { name, email, position });
+      if (errors.length > 0) {
+        throw new Error(errors.join(', '));
+      }
       
-      const response = await fetch(`${API_URL}/start-interview/${sessionId}`, {
+      const response = await fetchWithTimeout(`${API_URL}/api/start-interview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          name,
-          email,
-          position
-        })
+        body: JSON.stringify(candidateData)
       });
       
       if (!response.ok) {
@@ -166,60 +210,32 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       }
       
       const data = await response.json();
-      console.log('Interview started, first question received:', data);
+      console.log('Interview started successfully:', data);
       
-      // Проверяем статус сервера
-      if (data.status === 'error') {
-        throw new Error(data.message || 'Server error occurred');
-      }
+      // Save session ID
+      localStorage.setItem('interview_session_id', data.session_id);
       
-      // Проверяем статус интервью
-      if (data.status === 'active' || data.status === 'resumed') {
-        const question = data.first_question || data.current_question;
-        if (!question || question.trim() === '') {
-          console.error('No valid question in response:', data);
-          throw new Error('Interview question is missing. Please try again or contact support.');
-        }
-        
-        console.log('Setting current question:', question);
-        setCurrentQuestion(question);
-        setCurrentTopic(data.current_topic || 'general');
+      // Set initial question
+      if (data.question) {
+        setCurrentQuestion(data.question);
+        setCurrentTopic(data.topic || 'general');
         setIsInitialized(true);
-        
-        // Сохраняем состояние
-        localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
-          timestamp: Date.now(),
-          data: {
-            current_question: question,
-            current_topic: data.current_topic || 'general',
-            progress: data.progress
-          }
-        }));
       } else {
-        console.error('Invalid interview status:', data.status);
-        throw new Error('Interview failed to start properly');
+        throw new Error('No question received from server');
       }
       
-      setRemainingTime(300); // Reset timer for next question
+      setRemainingTime(300); // Reset timer
       
     } catch (err: any) {
-      console.error('Error fetching next question:', err);
-      setError(err.message || 'Failed to load the next question');
-      
-      // Показываем уведомление об ошибке
-      if (typeof window !== 'undefined') {
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50';
-        notification.textContent = err.message || 'Failed to load the next question';
-        document.body.appendChild(notification);
-        setTimeout(() => notification.remove(), 5000);
-      }
+      console.error('Error starting interview:', err);
+      setError(err.message || 'Failed to start interview');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [sessionId, isInitialized]);
+  }, []);
   
-  // Submit answer with improved error handling and retry logic
+  // Submit answer
   const submitAnswer = useCallback(async (answer: string) => {
     try {
       setLoading(true);
@@ -239,18 +255,23 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         throw new Error('Your answer is too short. Please provide more details.');
       }
       
+      // Get session ID
+      const sessionId = localStorage.getItem('interview_session_id');
+      if (!sessionId) {
+        throw new Error('No active interview session');
+      }
+      
       console.log('Submitting answer:', { answer, currentTopic });
       
-      const response = await fetch(`${API_URL}/submit-answer/${sessionId}`, {
+      const response = await fetchWithTimeout(`${API_URL}/api/process-answer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({
-          answer,
-          topic: currentTopic
+          session_id: sessionId,
+          answer: answer
         })
       });
       
@@ -260,26 +281,20 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       }
       
       const data = await response.json();
-      console.log('Answer submitted successfully:', data);
+      console.log('Answer processed successfully:', data);
       
-      // Обновляем прогресс
-      if (data.progress) {
-        setProgress(data.progress);
-      }
+      // Update UI with response
+      setFeedback(data.feedback);
+      setScore(data.score);
       
-      // Проверяем, завершено ли интервью
-      if (data.status === 'completed') {
-        console.log('Interview completed, redirecting to results page');
-        router.replace(`/interview/${sessionId}/complete`);
-        return;
-      }
-      
-      // Получаем следующий вопрос
+      // Set next question
       if (data.next_question) {
         setCurrentQuestion(data.next_question);
-        setCurrentTopic(data.next_topic || 'general');
+        setCurrentTopic(data.topic || 'general');
       } else {
-        throw new Error('No next question available');
+        setInterviewComplete(true);
+        router.replace(`/interview/${sessionId}/complete`);
+        return;
       }
       
       setRemainingTime(300); // Reset timer for next question
@@ -299,7 +314,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     } finally {
       setLoading(false);
     }
-  }, [sessionId, currentTopic, router]);
+  }, [currentTopic, router]);
   
   // End interview early
   const endInterviewEarly = useCallback(async () => {
@@ -308,12 +323,16 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         console.log('Ending interview early...');
         setLoading(true);
         
-        const response = await fetch(`${API_URL}/end-interview/${sessionId}`, {
+        const sessionId = localStorage.getItem('interview_session_id');
+        if (!sessionId) {
+          throw new Error('No active interview session');
+        }
+        
+        const response = await fetchWithTimeout(`${API_URL}/api/end-interview/${sessionId}`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json'
-          },
-          credentials: 'include'
+          }
         });
         
         if (!response.ok) {
@@ -332,7 +351,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setLoading(false);
       }
     }
-  }, [router, sessionId]);
+  }, [router]);
   
   // Toggle between text and audio input
   const toggleInputMode = useCallback(() => {
@@ -346,19 +365,18 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     setError,
     currentQuestion,
     currentTopic,
-    transcription,
-    aiResponse,
+    feedback,
+    score,
     remainingTime,
     setRemainingTime,
     progress,
     interviewComplete,
-    evaluation,
     useTextInput,
     textInput,
     setTextInput,
     isInitialized,
     fetchInterviewInfo,
-    fetchNextQuestion,
+    startInterview,
     submitAnswer,
     endInterviewEarly,
     toggleInputMode: () => setUseTextInput(!useTextInput)
