@@ -23,10 +23,23 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw error;
+  }
+}
+
 export const api = {
   async healthCheck(): Promise<HealthCheckResponse> {
     try {
-      const response = await fetch(API_ENDPOINTS.health, {
+      const response = await fetchWithRetry(API_ENDPOINTS.health, {
         method: 'GET',
         headers: API_HEADERS,
       });
@@ -37,13 +50,13 @@ export const api = {
           endpoint: 'healthCheck',
         },
       });
-      throw error;
+      throw new Error('API services are not available');
     }
   },
 
   async startInterview(interviewId: string): Promise<{ status: string; interview_id: string }> {
     try {
-      const response = await fetch(API_ENDPOINTS.startInterview(interviewId), {
+      const response = await fetchWithRetry(API_ENDPOINTS.startInterview(interviewId), {
         method: 'POST',
         headers: API_HEADERS,
       });
@@ -55,13 +68,13 @@ export const api = {
           interviewId,
         },
       });
-      throw error;
+      throw new Error('Failed to start interview. Please try again later.');
     }
   },
 
   async sendMessage(data: ChatRequest): Promise<ChatResponse> {
     try {
-      const response = await fetch(API_ENDPOINTS.chat, {
+      const response = await fetchWithRetry(API_ENDPOINTS.chat, {
         method: 'POST',
         headers: API_HEADERS,
         body: JSON.stringify(data),
@@ -74,13 +87,13 @@ export const api = {
           interviewId: data.interview_id,
         },
       });
-      throw error;
+      throw new Error('Failed to send message. Please try again later.');
     }
   },
 
   async getEvaluation(data: EvaluationRequest): Promise<EvaluationResponse> {
     try {
-      const response = await fetch(API_ENDPOINTS.evaluation, {
+      const response = await fetchWithRetry(API_ENDPOINTS.evaluation, {
         method: 'POST',
         headers: API_HEADERS,
         body: JSON.stringify(data),
@@ -93,7 +106,7 @@ export const api = {
           interviewId: data.interview_id,
         },
       });
-      throw error;
+      throw new Error('Failed to get evaluation. Please try again later.');
     }
   },
 }; 

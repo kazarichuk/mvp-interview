@@ -1,10 +1,12 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
 export const API_ENDPOINTS = {
   health: `${API_BASE_URL}/health-check`,
   chat: `${API_BASE_URL}/chat`,
   evaluation: `${API_BASE_URL}/evaluation`,
   startInterview: (id: string) => `${API_BASE_URL}/interview/${id}/start`,
+  validateSession: `${API_BASE_URL}/validate-interview-session`,
+  results: (id: string) => `${API_BASE_URL}/interview/${id}/results`,
 } as const;
 
 export const API_HEADERS = {
@@ -13,21 +15,9 @@ export const API_HEADERS = {
 } as const;
 
 export const API_CONFIG = {
-  baseUrl: process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com',
-  endpoints: {
-    chat: '/chat',
-    results: '/interview/{id}/results',
-    validateSession: '/validate-interview-session',
-    createLink: '/create-interview-link',
-    healthCheck: '/health-check'
-  },
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  },
+  baseUrl: API_BASE_URL,
+  endpoints: API_ENDPOINTS,
+  headers: API_HEADERS,
   timeouts: {
     request: 30000, // 30 seconds
     retry: {
