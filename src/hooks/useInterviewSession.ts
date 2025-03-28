@@ -60,7 +60,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   // Check API health
   const checkApiHealth = useCallback(async () => {
     try {
-      const response = await fetchWithTimeout(`${API_URL}/health-check`, {
+      const response = await fetchWithTimeout('/api/health', {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
@@ -125,7 +125,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       }
 
       // Start interview
-      const response = await fetchWithTimeout(`${API_URL}/chat`, {
+      const response = await fetchWithTimeout('/api/interview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       
       console.log('Submitting answer:', answer);
       
-      const response = await fetchWithTimeout(`${API_URL}/chat`, {
+      const response = await fetchWithTimeout('/api/interview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -257,7 +257,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setLoading(true);
         
         // Get results
-        const response = await fetchWithTimeout(`${API_URL}/interview/${sessionId}/results`, {
+        const response = await fetchWithTimeout(`/api/interview/${sessionId}/results`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
