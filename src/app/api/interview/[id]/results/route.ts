@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
 export async function GET(
   request: NextRequest,
-  { params }: Props
+  { params }: { params: { id: string } }
 ) {
   try {
     const response = await fetch(`${API_URL}/interview/${params.id}/results`, {
