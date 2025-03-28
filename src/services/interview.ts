@@ -28,22 +28,44 @@ export interface InterviewLink {
   session_id: string;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      credentials: 'include', // Important for CORS
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error) {
-    clearTimeout(timeout);
-    throw error;
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retryConfig = API_CONFIG.timeouts.retry
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < retryConfig.maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        credentials: 'include',
+        headers: {
+          ...API_CONFIG.headers,
+          ...options.headers
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < retryConfig.maxAttempts - 1) {
+        const delay = Math.min(
+          retryConfig.initialDelay * Math.pow(2, attempt),
+          retryConfig.maxDelay
+        );
+        await sleep(delay);
+      }
+    }
   }
+  
+  throw lastError;
 }
 
 export const interviewService = {
@@ -52,7 +74,7 @@ export const interviewService = {
    */
   async checkHealth(): Promise<boolean> {
     try {
-      const response = await fetchWithTimeout(
+      const response = await fetchWithRetry(
         `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.healthCheck}`,
         { headers: API_CONFIG.headers }
       );
@@ -67,7 +89,7 @@ export const interviewService = {
    * Start a new interview session
    */
   async startInterview(): Promise<InterviewResponse> {
-    const response = await fetchWithTimeout(
+    const response = await fetchWithRetry(
       `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.chat}`,
       {
         method: 'POST',
@@ -91,7 +113,7 @@ export const interviewService = {
    * Send an answer to the current interview question
    */
   async sendAnswer(answer: string): Promise<InterviewResponse> {
-    const response = await fetchWithTimeout(
+    const response = await fetchWithRetry(
       `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.chat}`,
       {
         method: 'POST',
@@ -115,67 +137,75 @@ export const interviewService = {
    * Get interview results
    */
   async getResults(interviewId: string): Promise<InterviewResults> {
-    const response = await fetchWithTimeout(
-      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.results(interviewId)}`,
-      { headers: API_CONFIG.headers }
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Interview session not found');
-      }
-      throw new Error('Failed to fetch results');
+    try {
+      const response = await fetchWithRetry(
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.results.replace('{id}', interviewId)}`,
+        {
+          method: 'GET'
+        }
+      );
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to get interview results:', error);
+      throw error;
     }
-
-    return response.json();
   },
 
   /**
    * Validate interview session
    */
   async validateSession(sessionId: string, candidateEmail: string): Promise<ValidationResponse> {
-    const response = await fetchWithTimeout(
-      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.validateSession}`,
-      {
-        method: 'POST',
-        headers: API_CONFIG.headers,
-        body: JSON.stringify({
-          session_id: sessionId,
-          candidate_email: candidateEmail
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to validate session');
+    try {
+      const response = await fetchWithRetry(
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.validateSession}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ session_id: sessionId, candidate_email: candidateEmail })
+        }
+      );
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Session validation failed:', error);
+      throw error;
     }
-
-    return response.json();
   },
 
   /**
    * Create interview link
    */
   async createInterviewLink(candidateEmail: string, position: string = "UX/UI Designer"): Promise<InterviewLink> {
-    const formData = new FormData();
-    formData.append('candidate_email', candidateEmail);
-    formData.append('position', position);
-
-    const response = await fetchWithTimeout(
-      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.createLink}`,
-      {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-        body: formData
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to create interview link');
+    try {
+      const response = await fetchWithRetry(
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.createLink}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ candidate_email: candidateEmail, position })
+        }
+      );
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to create interview link:', error);
+      throw error;
     }
+  },
 
-    return response.json();
+  async sendMessage(message: string, sessionId: string): Promise<any> {
+    try {
+      const response = await fetchWithRetry(
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.chat}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ message, session_id: sessionId })
+        }
+      );
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw error;
+    }
   }
 }; 
