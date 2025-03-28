@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const response = await fetch(`${API_URL}/health-check`, {
       headers: {

@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_URL}/interview/${params.id}/results`, {
+    const response = await fetch(`${API_URL}/interview/${context.params.id}/results`, {
       headers: {
         'Accept': 'application/json'
       }
