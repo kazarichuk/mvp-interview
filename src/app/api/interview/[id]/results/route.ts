@@ -4,10 +4,10 @@ const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_URL}/interview/${params.id}/results`, {
+    const response = await fetch(`${API_URL}/interview/${context.params.id}/results`, {
       headers: {
         'Accept': 'application/json'
       }
