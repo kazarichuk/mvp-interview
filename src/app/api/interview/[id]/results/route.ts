@@ -10,36 +10,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = await Promise.resolve(params.id);
-    
-    const response = await fetch(`${API_URL}/interview/${id}/results`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store'
-    });
-
+    const response = await fetch(`${API_URL}/interview/${params.id}/results`);
     const data = await response.json();
-    
-    return NextResponse.json(data, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching results:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch results' },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    return NextResponse.json({ error: 'Failed to fetch results' }, { status: 500 });
   }
 } 
