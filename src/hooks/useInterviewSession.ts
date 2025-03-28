@@ -252,6 +252,11 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         });
         
         if (!response.ok) {
+          if (response.status === 404) {
+            // Если результаты еще не готовы, показываем сообщение
+            setError('Interview results are not yet available. Please try again later.');
+            return;
+          }
           const errorData = await response.json();
           throw new Error(errorData.detail || 'Failed to get interview results');
         }
