@@ -60,7 +60,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   // Check API health
   const checkApiHealth = useCallback(async () => {
     try {
-      const response = await fetchWithTimeout(`${API_URL}/health`, {
+      const response = await fetchWithTimeout(`${API_URL}/health-check`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
@@ -72,7 +72,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       }
       
       const data = await response.json();
-      if (data.status !== 'healthy' || data.vllm_api !== 'available') {
+      if (data.status !== 'ok') {
         throw new Error('API services are not available');
       }
       return true;
