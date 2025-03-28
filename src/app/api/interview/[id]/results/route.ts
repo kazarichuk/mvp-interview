@@ -11,7 +11,8 @@ export async function GET(
   { params }: { params: RouteParams }
 ) {
   try {
-    const response = await fetch(`${API_URL}/interview/${params.id}/results`, {
+    const id = await Promise.resolve(params.id);
+    const response = await fetch(`${API_URL}/interview/${id}/results`, {
       headers: {
         'Accept': 'application/json'
       }
