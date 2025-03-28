@@ -13,10 +13,12 @@ export async function GET(
   try {
     const id = await Promise.resolve(params.id);
     const response = await fetch(`${API_URL}/interview/${id}/results`, {
+      method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
-      }
+      },
+      cache: 'no-store'
     });
     
     if (!response.ok) {
@@ -27,12 +29,7 @@ export async function GET(
     }
 
     const data = await response.json();
-    return NextResponse.json(data, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0'
-      }
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching results:', error);
     return NextResponse.json(
