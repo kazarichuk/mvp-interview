@@ -9,6 +9,19 @@ interface UseInterviewSessionProps {
   sessionId: string;
 }
 
+interface InterviewResults {
+  technical_skills: number;
+  design_methodology: number;
+  design_principles: number;
+  design_systems: number;
+  communication: number;
+  problem_solving: number;
+  overall_score: number;
+  experience_level: string;
+  strengths: string[];
+  areas_for_improvement: string[];
+}
+
 export default function useInterviewSession({ sessionId }: UseInterviewSessionProps) {
   const router = useRouter();
   
@@ -16,15 +29,15 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
-  const [currentTopic, setCurrentTopic] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string>('');
   const [score, setScore] = useState<number | null>(null);
-  const [remainingTime, setRemainingTime] = useState(300); // 5 minutes in seconds
+  const [remainingTime, setRemainingTime] = useState(3600); // 60 minutes in seconds
   const [progress, setProgress] = useState<any>(null);
   const [interviewComplete, setInterviewComplete] = useState(false);
   const [useTextInput, setUseTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [results, setResults] = useState<InterviewResults | null>(null);
   
   // Fetch with timeout
   const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 30000) => {
@@ -47,15 +60,17 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
   // Check API health
   const checkApiHealth = useCallback(async () => {
     try {
-      const response = await fetchWithTimeout(`${API_URL}/api/health`, {
+      const response = await fetchWithTimeout(`${API_URL}/health`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
         }
       });
+      
       if (!response.ok) {
         throw new Error('API is not healthy');
       }
+      
       const data = await response.json();
       if (data.status !== 'healthy' || data.vllm_api !== 'available') {
         throw new Error('API services are not available');
@@ -89,7 +104,6 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         if (Date.now() - timestamp < 30 * 60 * 1000) {
           console.log('Using saved interview state');
           setCurrentQuestion(data.current_question);
-          setCurrentTopic(data.current_topic);
           setIsInitialized(true);
           setProgress(data.progress || 0);
           setLoading(false);
@@ -97,65 +111,34 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         }
       }
 
-      const response = await fetchWithTimeout(`${API_URL}/api/interview-info/${sessionId}`, {
-        method: 'GET',
+      // Start interview
+      const response = await fetchWithTimeout(`${API_URL}/chat`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Accept': 'application/json'
-        }
+        },
+        body: JSON.stringify({ message: 'Start interview' })
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to load interview information');
+        throw new Error(errorData.detail || 'Failed to start interview');
       }
       
       const data = await response.json();
-      console.log('Interview info received:', data);
+      console.log('Interview started successfully:', data);
       
-      // Проверяем статус интервью
-      if (data.status === 'pending') {
-        console.log('Interview pending, redirecting to start page');
-        window.location.href = `/interview/${sessionId}`;
-        return;
-      }
-      
-      if (data.status === 'completed') {
-        console.log('Interview already completed, redirecting to results page');
-        router.replace(`/interview/${sessionId}/complete`);
-        return;
-      }
-      
-      // Проверяем наличие вопроса
-      const question = data.question;
-      if (!question || question.trim() === '') {
-        console.error('No valid question in response:', data);
-        throw new Error('Interview question is missing. Please try again or contact support.');
-      }
-      
-      // Update progress
-      if (data.progress) {
-        setProgress(data.progress);
-      }
-
-      // If interview is active or resumed, get current question
-      if ((data.status === 'active' || data.status === 'resumed') && !isInitialized) {
-        console.log('Setting current question:', question);
-        setCurrentQuestion(question);
-        setCurrentTopic(data.topic || 'general');
+      // Set initial question
+      if (data.response) {
+        setCurrentQuestion(data.response);
         setIsInitialized(true);
-        
-        // Сохраняем состояние
-        localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
-          timestamp: Date.now(),
-          data: {
-            current_question: question,
-            current_topic: data.topic || 'general',
-            progress: data.progress
-          }
-        }));
+      } else {
+        throw new Error('No question received from server');
       }
       
-      setLoading(false);
+      setRemainingTime(3600); // Reset timer
+      
     } catch (err: any) {
       console.error('Error fetching interview info:', err);
       setError(err.message || 'Error loading interview');
@@ -169,71 +152,10 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 5000);
       }
-    }
-  }, [sessionId, router, isInitialized, checkApiHealth]);
-  
-  // Start interview
-  const startInterview = useCallback(async (candidateData: { name: string; email: string; position: string }) => {
-    try {
-      console.log('Starting interview...');
-      setLoading(true);
-      setError(null);
-      
-      // Validate candidate data
-      const errors = [];
-      if (!candidateData.name || candidateData.name.length < 2) {
-        errors.push('Name must be at least 2 characters long');
-      }
-      if (!candidateData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateData.email)) {
-        errors.push('Invalid email format');
-      }
-      if (!candidateData.position) {
-        errors.push('Position is required');
-      }
-      
-      if (errors.length > 0) {
-        throw new Error(errors.join(', '));
-      }
-      
-      const response = await fetchWithTimeout(`${API_URL}/api/start-interview`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(candidateData)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to start interview');
-      }
-      
-      const data = await response.json();
-      console.log('Interview started successfully:', data);
-      
-      // Save session ID
-      localStorage.setItem('interview_session_id', data.session_id);
-      
-      // Set initial question
-      if (data.question) {
-        setCurrentQuestion(data.question);
-        setCurrentTopic(data.topic || 'general');
-        setIsInitialized(true);
-      } else {
-        throw new Error('No question received from server');
-      }
-      
-      setRemainingTime(300); // Reset timer
-      
-    } catch (err: any) {
-      console.error('Error starting interview:', err);
-      setError(err.message || 'Failed to start interview');
-      throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sessionId, checkApiHealth]);
   
   // Submit answer
   const submitAnswer = useCallback(async (answer: string) => {
@@ -255,24 +177,15 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         throw new Error('Your answer is too short. Please provide more details.');
       }
       
-      // Get session ID
-      const sessionId = localStorage.getItem('interview_session_id');
-      if (!sessionId) {
-        throw new Error('No active interview session');
-      }
+      console.log('Submitting answer:', answer);
       
-      console.log('Submitting answer:', { answer, currentTopic });
-      
-      const response = await fetchWithTimeout(`${API_URL}/api/process-answer`, {
+      const response = await fetchWithTimeout(`${API_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          session_id: sessionId,
-          answer: answer
-        })
+        body: JSON.stringify({ message: answer })
       });
       
       if (!response.ok) {
@@ -284,20 +197,27 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
       console.log('Answer processed successfully:', data);
       
       // Update UI with response
-      setFeedback(data.feedback);
-      setScore(data.score);
+      setCurrentQuestion(data.response);
+      setFeedback(data.feedback || '');
+      setScore(data.score || null);
       
-      // Set next question
-      if (data.next_question) {
-        setCurrentQuestion(data.next_question);
-        setCurrentTopic(data.topic || 'general');
-      } else {
-        setInterviewComplete(true);
-        router.replace(`/interview/${sessionId}/complete`);
-        return;
-      }
+      // Save progress
+      const currentProgress = {
+        questions_answered: (progress?.questions_answered || 0) + 1,
+        timestamp: Date.now()
+      };
+      setProgress(currentProgress);
       
-      setRemainingTime(300); // Reset timer for next question
+      // Save state
+      localStorage.setItem(`interview_state_${sessionId}`, JSON.stringify({
+        timestamp: Date.now(),
+        data: {
+          current_question: data.response,
+          progress: currentProgress
+        }
+      }));
+      
+      setRemainingTime(3600); // Reset timer for next question
       
     } catch (err: any) {
       console.error('Error submitting answer:', err);
@@ -314,7 +234,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     } finally {
       setLoading(false);
     }
-  }, [currentTopic, router]);
+  }, [progress, sessionId]);
   
   // End interview early
   const endInterviewEarly = useCallback(async () => {
@@ -323,13 +243,9 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         console.log('Ending interview early...');
         setLoading(true);
         
-        const sessionId = localStorage.getItem('interview_session_id');
-        if (!sessionId) {
-          throw new Error('No active interview session');
-        }
-        
-        const response = await fetchWithTimeout(`${API_URL}/api/end-interview/${sessionId}`, {
-          method: 'POST',
+        // Get results
+        const response = await fetchWithTimeout(`${API_URL}/interview/${sessionId}/results`, {
+          method: 'GET',
           headers: {
             'Accept': 'application/json'
           }
@@ -337,8 +253,12 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to end the interview');
+          throw new Error(errorData.detail || 'Failed to get interview results');
         }
+        
+        const data = await response.json();
+        setResults(data);
+        setInterviewComplete(true);
         
         console.log('Interview ended successfully');
         
@@ -351,12 +271,7 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         setLoading(false);
       }
     }
-  }, [router]);
-  
-  // Toggle between text and audio input
-  const toggleInputMode = useCallback(() => {
-    setUseTextInput(!useTextInput);
-  }, [useTextInput]);
+  }, [router, sessionId]);
   
   // Return hook interface
   return {
@@ -364,7 +279,6 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     error,
     setError,
     currentQuestion,
-    currentTopic,
     feedback,
     score,
     remainingTime,
@@ -375,8 +289,8 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
     textInput,
     setTextInput,
     isInitialized,
+    results,
     fetchInterviewInfo,
-    startInterview,
     submitAnswer,
     endInterviewEarly,
     toggleInputMode: () => setUseTextInput(!useTextInput)

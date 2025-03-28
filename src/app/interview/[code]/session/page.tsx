@@ -170,10 +170,18 @@ export default function InterviewSessionPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          {/* Error Alert */}
+          {interview.error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{interview.error}</AlertDescription>
+            </Alert>
+          )}
+          
           {/* Question Card */}
           <QuestionCard
             question={interview.currentQuestion}
-            topic={interview.currentTopic}
             loading={interview.loading}
             error={interview.error}
           />

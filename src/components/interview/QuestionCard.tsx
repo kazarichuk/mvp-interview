@@ -1,16 +1,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 interface QuestionCardProps {
   question: string | null;
-  topic: string | null;
   loading: boolean;
   error: string | null;
 }
 
-export default function QuestionCard({ question, topic, loading, error }: QuestionCardProps) {
+export default function QuestionCard({ question, loading, error }: QuestionCardProps) {
   if (loading) {
     return (
       <Card>
@@ -47,12 +45,7 @@ export default function QuestionCard({ question, topic, loading, error }: Questi
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Question</CardTitle>
-          {topic && (
-            <Badge variant="secondary">{topic}</Badge>
-          )}
-        </div>
+        <CardTitle>Question</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-lg">{question}</p>
