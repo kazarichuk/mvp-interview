@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_INTERVIEW_API_URL || 'https://interview-api-ozcp.onrender.com';
 
@@ -23,7 +23,7 @@ export async function GET(
 
     const data = await response.json();
     
-    return new Response(JSON.stringify(data), {
+    return NextResponse.json(data, {
       status: response.status,
       headers: {
         'Content-Type': 'application/json',
@@ -32,8 +32,8 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error fetching results:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch results' }), 
+    return NextResponse.json(
+      { error: 'Failed to fetch results' },
       { 
         status: 500,
         headers: {
