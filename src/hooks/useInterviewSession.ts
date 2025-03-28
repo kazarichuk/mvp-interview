@@ -106,6 +106,19 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
           setCurrentQuestion(data.current_question);
           setIsInitialized(true);
           setProgress(data.progress || 0);
+          
+          // Проверяем оставшееся время
+          const timeElapsed = Math.floor((Date.now() - timestamp) / 1000);
+          const remainingTime = Math.max(0, 3600 - timeElapsed);
+          setRemainingTime(remainingTime);
+          
+          if (remainingTime === 0) {
+            // Если время вышло, завершаем интервью
+            setInterviewComplete(true);
+            router.push(`/interview/${sessionId}/complete`);
+            return;
+          }
+          
           setLoading(false);
           return;
         }
@@ -264,6 +277,9 @@ export default function useInterviewSession({ sessionId }: UseInterviewSessionPr
         const data = await response.json();
         setResults(data);
         setInterviewComplete(true);
+        
+        // Очищаем сохраненное состояние
+        localStorage.removeItem(`interview_state_${sessionId}`);
         
         console.log('Interview ended successfully');
         
