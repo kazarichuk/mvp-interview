@@ -7,7 +7,9 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_URL}/interview/${context.params.id}/results`, {
+    const { id } = await context.params;
+    
+    const response = await fetch(`${API_URL}/interview/${id}/results`, {
       headers: {
         'Accept': 'application/json'
       }
