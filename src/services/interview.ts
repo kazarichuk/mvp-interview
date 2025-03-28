@@ -18,6 +18,16 @@ export interface InterviewResults {
   areas_for_improvement: string[];
 }
 
+export interface ValidationResponse {
+  valid: boolean;
+  message?: string;
+}
+
+export interface InterviewLink {
+  link: string;
+  session_id: string;
+}
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_CONFIG.timeout);
@@ -26,6 +36,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
+      credentials: 'include', // Important for CORS
     });
     clearTimeout(timeout);
     return response;
@@ -118,4 +129,53 @@ export const interviewService = {
 
     return response.json();
   },
+
+  /**
+   * Validate interview session
+   */
+  async validateSession(sessionId: string, candidateEmail: string): Promise<ValidationResponse> {
+    const response = await fetchWithTimeout(
+      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.validateSession}`,
+      {
+        method: 'POST',
+        headers: API_CONFIG.headers,
+        body: JSON.stringify({
+          session_id: sessionId,
+          candidate_email: candidateEmail
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to validate session');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Create interview link
+   */
+  async createInterviewLink(candidateEmail: string, position: string = "UX/UI Designer"): Promise<InterviewLink> {
+    const formData = new FormData();
+    formData.append('candidate_email', candidateEmail);
+    formData.append('position', position);
+
+    const response = await fetchWithTimeout(
+      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.createLink}`,
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to create interview link');
+    }
+
+    return response.json();
+  }
 }; 

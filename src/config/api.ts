@@ -4,6 +4,8 @@ export const API_CONFIG = {
     healthCheck: '/health-check',
     chat: '/chat',
     results: (interviewId: string) => `/interview/${interviewId}/results`,
+    validateSession: '/validate-interview-session',
+    createLink: '/create-interview-link',
   },
   headers: {
     'Content-Type': 'application/json',
