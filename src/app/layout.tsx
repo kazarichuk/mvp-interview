@@ -2,6 +2,7 @@ import { AuthProvider } from '@/components/providers/AuthProvider';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import '@/styles/tailwind.css';
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata = {
   title: 'HireFlick',
@@ -23,6 +24,7 @@ export default function RootLayout({
           {children}
           <SpeedInsights />
           <Analytics />
+          <Toaster />
         </AuthProvider>
       </body>
     </html>
