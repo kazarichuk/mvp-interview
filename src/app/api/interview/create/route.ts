@@ -1,42 +1,44 @@
 import { NextResponse } from 'next/server';
-import type { ValidateSessionRequest, ValidateSessionResponse } from '@/types/api';
+import type { CreateInterviewRequest, CreateInterviewResponse } from '@/types/api';
 import { API_CONFIG, ApiError } from '@/config/api';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-      'Cache-Control': 'no-store, max-age=0',
-    },
-  });
-}
 
 export async function POST(request: Request) {
   try {
-    const body: ValidateSessionRequest = await request.json();
-    const { session_id, interview_id } = body;
-
+    const body: CreateInterviewRequest = await request.json();
+    
     // Validate required fields
-    if (!session_id || !interview_id) {
+    if (!body.candidate_email || !body.position || !body.interview_type || !body.duration_minutes) {
       throw new ApiError(
         400,
         'VALIDATION_ERROR',
         API_CONFIG.errorMessages.missingRequiredFields,
-        { required: ['session_id', 'interview_id'] }
+        { required: ['candidate_email', 'position', 'interview_type', 'duration_minutes'] }
       );
     }
 
-    const response = await fetch(API_CONFIG.endpoints.validateSession, {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(body.candidate_email)) {
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        API_CONFIG.errorMessages.invalidEmail
+      );
+    }
+
+    // Validate duration
+    if (body.duration_minutes < 15 || body.duration_minutes > 120) {
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Interview duration must be between 15 and 120 minutes'
+      );
+    }
+
+    const response = await fetch(API_CONFIG.endpoints.createInterview, {
       method: 'POST',
       headers: API_CONFIG.headers,
-      body: JSON.stringify({ session_id, interview_id })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -56,26 +58,26 @@ export async function POST(request: Request) {
       }
       throw new ApiError(
         response.status,
-        'VALIDATION_REQUEST_FAILED',
+        'CREATE_INTERVIEW_FAILED',
         API_CONFIG.errorMessages.serviceUnavailable,
         { status: response.status }
       );
     }
 
-    const data: ValidateSessionResponse = await response.json();
+    const data: CreateInterviewResponse = await response.json();
 
     if (!data.success) {
       throw new ApiError(
         500,
-        'VALIDATION_ERROR',
-        data.error?.message || API_CONFIG.errorMessages.validationError,
+        'CREATE_INTERVIEW_ERROR',
+        data.error?.message || API_CONFIG.errorMessages.serviceUnavailable,
         data.error?.details
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Session validation failed:', error);
+    console.error('Create Interview API Error:', error);
     
     if (error instanceof ApiError) {
       return NextResponse.json(

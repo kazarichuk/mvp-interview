@@ -1,30 +1,13 @@
 import { NextResponse } from 'next/server';
-import type { ValidateSessionRequest, ValidateSessionResponse } from '@/types/api';
+import type { StartInterviewRequest, StartInterviewResponse } from '@/types/api';
 import { API_CONFIG, ApiError } from '@/config/api';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-      'Cache-Control': 'no-store, max-age=0',
-    },
-  });
-}
 
 export async function POST(request: Request) {
   try {
-    const body: ValidateSessionRequest = await request.json();
-    const { session_id, interview_id } = body;
-
+    const body: StartInterviewRequest = await request.json();
+    
     // Validate required fields
-    if (!session_id || !interview_id) {
+    if (!body.session_id || !body.interview_id) {
       throw new ApiError(
         400,
         'VALIDATION_ERROR',
@@ -33,10 +16,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await fetch(API_CONFIG.endpoints.validateSession, {
+    const response = await fetch(API_CONFIG.endpoints.startInterview(body.session_id), {
       method: 'POST',
       headers: API_CONFIG.headers,
-      body: JSON.stringify({ session_id, interview_id })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -54,28 +37,42 @@ export async function POST(request: Request) {
           API_CONFIG.errorMessages.forbidden
         );
       }
+      if (response.status === 404) {
+        throw new ApiError(
+          404,
+          'INTERVIEW_NOT_FOUND',
+          API_CONFIG.errorMessages.interviewNotFound
+        );
+      }
+      if (response.status === 409) {
+        throw new ApiError(
+          409,
+          'INTERVIEW_ALREADY_STARTED',
+          API_CONFIG.errorMessages.interviewAlreadyStarted
+        );
+      }
       throw new ApiError(
         response.status,
-        'VALIDATION_REQUEST_FAILED',
+        'START_INTERVIEW_FAILED',
         API_CONFIG.errorMessages.serviceUnavailable,
         { status: response.status }
       );
     }
 
-    const data: ValidateSessionResponse = await response.json();
+    const data: StartInterviewResponse = await response.json();
 
     if (!data.success) {
       throw new ApiError(
         500,
-        'VALIDATION_ERROR',
-        data.error?.message || API_CONFIG.errorMessages.validationError,
+        'START_INTERVIEW_ERROR',
+        data.error?.message || API_CONFIG.errorMessages.serviceUnavailable,
         data.error?.details
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Session validation failed:', error);
+    console.error('Start Interview API Error:', error);
     
     if (error instanceof ApiError) {
       return NextResponse.json(
