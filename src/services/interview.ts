@@ -30,23 +30,61 @@ export interface InterviewLink {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+async function checkApiHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.health}`,
+      {
+        method: 'GET',
+        headers: API_CONFIG.headers
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('Health check failed:', response.status);
+      return false;
+    }
+    
+    const data = await response.json();
+    return data.status === 'healthy';
+  } catch (error) {
+    console.error('Health check error:', error);
+    return false;
+  }
+}
+
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   retryConfig = API_CONFIG.timeouts.retry
 ): Promise<Response> {
   let lastError: Error | null = null;
+  let timeoutId: NodeJS.Timeout | undefined;
+  
+  // Check API health before making the request
+  const isHealthy = await checkApiHealth();
+  if (!isHealthy) {
+    throw new Error(API_CONFIG.errorMessages.apiUnavailable);
+  }
   
   for (let attempt = 0; attempt < retryConfig.maxAttempts; attempt++) {
     try {
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeouts.request);
+      
       const response = await fetch(url, {
         ...options,
         credentials: 'include',
+        signal: controller.signal,
         headers: {
           ...API_CONFIG.headers,
           ...options.headers
         }
       });
+      
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -54,7 +92,20 @@ async function fetchWithRetry(
       
       return response;
     } catch (error) {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       lastError = error as Error;
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(API_CONFIG.errorMessages.timeout);
+        }
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error(API_CONFIG.errorMessages.networkError);
+        }
+      }
+      
       if (attempt < retryConfig.maxAttempts - 1) {
         const delay = Math.min(
           retryConfig.initialDelay * Math.pow(2, attempt),
@@ -75,7 +126,7 @@ export const interviewService = {
   async checkHealth(): Promise<boolean> {
     try {
       const response = await fetchWithRetry(
-        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.healthCheck}`,
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.health}`,
         { headers: API_CONFIG.headers }
       );
       return response.ok;
@@ -139,7 +190,7 @@ export const interviewService = {
   async getResults(interviewId: string): Promise<InterviewResults> {
     try {
       const response = await fetchWithRetry(
-        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.results.replace('{id}', interviewId)}`,
+        API_CONFIG.endpoints.results(interviewId),
         {
           method: 'GET'
         }
@@ -148,7 +199,7 @@ export const interviewService = {
       return await response.json();
     } catch (error) {
       console.error('Failed to get interview results:', error);
-      throw error;
+      throw new Error(API_CONFIG.errorMessages.serviceUnavailable);
     }
   },
 
@@ -168,7 +219,7 @@ export const interviewService = {
       return await response.json();
     } catch (error) {
       console.error('Session validation failed:', error);
-      throw error;
+      throw new Error(API_CONFIG.errorMessages.validationError);
     }
   },
 
@@ -178,17 +229,22 @@ export const interviewService = {
   async createInterviewLink(candidateEmail: string, position: string = "UX/UI Designer"): Promise<InterviewLink> {
     try {
       const response = await fetchWithRetry(
-        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.createLink}`,
+        `${API_CONFIG.baseUrl}/interview/create`,
         {
           method: 'POST',
-          body: JSON.stringify({ candidate_email: candidateEmail, position })
+          headers: API_CONFIG.headers,
+          body: JSON.stringify({ candidateEmail, position }),
         }
       );
-      
+
+      if (!response.ok) {
+        throw new Error('Failed to create interview link');
+      }
+
       return await response.json();
     } catch (error) {
       console.error('Failed to create interview link:', error);
-      throw error;
+      throw new Error(API_CONFIG.errorMessages.serviceUnavailable);
     }
   },
 
@@ -205,7 +261,7 @@ export const interviewService = {
       return await response.json();
     } catch (error) {
       console.error('Failed to send message:', error);
-      throw error;
+      throw new Error(API_CONFIG.errorMessages.serviceUnavailable);
     }
   }
 }; 
